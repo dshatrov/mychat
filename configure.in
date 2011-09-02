@@ -12,6 +12,7 @@ AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
 
 AC_CONFIG_FILES([Makefile
+		 web/Makefile
 		 mychat/Makefile])
 AC_OUTPUT
 

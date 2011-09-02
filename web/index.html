@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html style="height: 100%" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>Moment Video Server - http://momentvideo.org</title>
+<!--  <link rel="icon" type="image/vnd.microsoft.icon" href="favicon.ico"/> -->
+  <style type="text/css">
+    body {
+      height: 100%;
+      padding: 0;
+      margin: 0;
+      font-size: 16px;
+      font-family: sans-serif;
+    }
+
+    .chat_app {
+      display: none;
+      position: relative;
+      top: 0;
+      left: 0;
+      width: 100%;
+      min-height: 100%;
+    }
+
+    .header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .body {
+      position: absolute;
+      top: 490px;
+      bottom: 55px;
+      left: 0;
+      right: 0;
+      width: 100%;
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 10px;
+      left: 0;
+      width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .code_input {
+      color: #333333;
+      height: 30px;
+      border: 1px solid #cccccc;
+      padding-left: 2px;
+      padding-right: 2px;
+      font-size: 16px;
+/*      vertical-align: middle; */
+    }
+
+    .connect_button {
+      height: 30px;
+      color: white;
+      background-color: green;
+      border: 0px;
+      padding-left: 7px;
+      padding-right: 7px;
+      font-size: 14px;
+      font-weight: bold;
+      text-shadow: 1px 1px 0 #004400;
+    }
+
+    .connect_button:hover {
+      cursor: pointer;
+    }
+
+    .flash_div {
+      width: 640px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .chat_frame {
+      width: 634px;
+      height: 100%;
+      border-left: 1px solid #ccccdd;
+      border-right: 1px solid #ccccdd;
+      padding-left: 2px;
+      padding-right: 2px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .chat_scroll {
+      width: 100%;
+      height: 100%;
+      margin-left: auto;
+      margin-right: auto;
+      overflow: auto;
+    }
+
+    .chat_div {
+      padding-left: 6px;
+      padding-bottom: 6px;
+      padding-top: 3px;
+      font-size: 14px;
+      text-align: left;
+      word-wrap: break-word;
+    }
+
+    .input_div {
+      width: 634px;
+      background-color: #ffffff;
+      border-left: 1px solid #ccccdd;
+      border-right: 1px solid #ccccdd;
+      border-bottom: 1px solid #ccccdd;
+      padding-left: 2px;
+      padding-right: 2px;
+      padding-bottom: 2px;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: center;
+    }
+
+    .chat_input {
+      width: 550px;
+      height: 30px;
+      color: #333333;
+      border: 5px solid #707088;
+      border-right: 0;
+      outline: 0;
+      padding-left: 2px;
+      padding-right: 2px;
+      padding-top: 1px;
+      padding-bottom: 1px;
+      margin: 0;
+      font-size: 16px;
+      font-family: sans-serif;
+    }
+
+    .send_button {
+      color: white;
+      background-color: #707088;
+      border: 0;
+      margin: 0;
+      padding-left: 10px;
+      padding-right: 10px;
+      font-size: 14px;
+      font-weight: bold;
+      text-shadow: 1px 1px 0 #000044;
+      vertical-align: middle;
+    }
+
+    .send_button:hover {
+      cursor: pointer;
+    }
+
+    .chat_phrase {
+	padding-top: 0.5ex;
+    }
+  </style>
+  <script type="text/javascript">
+    var flash_initialized = false;
+    var should_connect = false;
+
+    function codeKeyDown (evt)
+    {
+	if (evt.keyCode == 13)
+	    connect ();
+    }
+
+    function flashInitialized ()
+    {
+	flash_initialized = true;
+	if (should_connect)
+	    doConnect ();
+    }
+
+    function connect ()
+    {
+	document.getElementById ("WelcomeScreen").style.display = "none";
+	document.getElementById ("ChatApp").style.display = "block";
+
+	doConnect ();
+
+	document.getElementById ("ChatInput").focus();
+    }
+
+    function doConnect ()
+    {
+	should_connect = true;
+	if (!flash_initialized)
+	    return;
+
+	document ["MyChat"].doConnect (document.getElementById ("CodeInput").value);
+    }
+  </script>
+</head>
+<body onload="document.getElementById('CodeInput').focus()">
+  <div id="WelcomeScreen" style="height: 100%; width: 100%">
+    <table style="height: 100%; border: 0; margin-left: auto; margin-right: auto" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="vertical-align: middle">
+	  <table style="border: 0" cellpadding="0" cellspacing="0">
+	    <tr>
+	      <td style="vertical-align: middle; padding-right: 1ex">
+		<span style="color: #808080">Enter conversation code:&nbsp;</span>
+		<input id="CodeInput" class="code_input" type="text" placeholder="Conversation code" onkeydown="codeKeyDown(event)"/>
+	      </td>
+	      <td class="connect_button" onclick="connect()">
+		Connect
+	      </td>
+	    </tr>
+	  </table>
+	</td>
+      </tr>
+    </table>
+  </div>
+  <div id="ChatApp" class="chat_app">
+    <div style="height: 490px; padding-bottom: 120px; width: 100%"/>
+      <div class="header">
+	<div class="flash_div">
+	  <!-- wmode="direct" doesn't work -->
+	  <object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"
+	      width="640"
+	      height="480"
+	      id="MyChat"
+	      align="Default">
+	    <param name="movie" value="MyChat.swf"/>
+	    <param name="bgcolor" value="#181830"/>
+	    <param name="scale" value="noscale"/>
+	    <param name="quality" value="high"/>
+	    <param name="allowfullscreen" value="true"/>
+	    <param name="allowscriptaccess" value="always"/>
+	    <embed src="MyChat.swf"
+		name="MyChat"
+		width="640"
+		height="480"
+		align="Default"
+		bgcolor="#181830"
+		scale="noscale"
+		quality="high"
+		allowfullscreen="true"
+		allowscriptaccess="always"
+		type="application/x-shockwave-flash"
+		pluginspage="http://www.adobe.com/shockwave/download/index.cgi?P1_Prod_Version=ShockwaveFlash"/>
+	  </object>
+	</div>
+      </div>
+      <div class="body">
+	<div class="chat_frame">
+	  <div id="ChatScroll" class="chat_scroll">
+	    <div id="ChatDiv" class="chat_div">
+	    </div>
+	  </div>
+	</div>
+      </div>
+      <div class="footer">
+	<div class="input_div">
+	  <table style="width: 100%; height: 100%; border: 0" cellpadding="0" cellspacing="0">
+	    <tr>
+	      <td style="text-align: left">
+		<input id="ChatInput" class="chat_input" type="text" placeholder="Enter chat message here" onkeydown="chatKeyDown(event)">
+		</input>
+	      </td>
+	      <td tabindex="0" class="send_button" style="width: 100%; vertical-align: middle" onclick="sendButtonClick()" onkeydown="sendKeyDown(event)">
+		Send
+	      </td>
+	    </tr>
+	  </table>
+	</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    flash       = document ["MyChat"];
+    chat_input  = document.getElementById ("ChatInput");
+    chat_scroll = document.getElementById ("ChatScroll");
+    chat_div    = document.getElementById ("ChatDiv");
+
+    function addChatMessage (msg)
+    {
+        var scroll_to_bottom = (chat_scroll.scrollTop + chat_scroll.clientHeight >= chat_scroll.scrollHeight);
+
+	var msg_div = document.createElement ('div');
+	msg_div.className = "chat_phrase";
+	var p_tag = document.createElement ('span');
+	var msg_text = document.createTextNode (msg);
+	p_tag.appendChild (msg_text);
+	msg_div.appendChild (p_tag);
+	chat_div.appendChild (msg_div);
+
+	if (scroll_to_bottom)
+	    chat_scroll.scrollTop = chat_scroll.scrollHeight;
+    }
+
+    function sendChatMessage ()
+    {
+	msg = chat_input.value;
+	chat_input.value = "";
+
+	addChatMessage (msg);
+	flash.sendChatMessage (msg);
+    }
+
+    function sendButtonClick ()
+    {
+	sendChatMessage ();
+    }
+
+    function chatKeyDown (evt)
+    {
+	if (evt.keyCode == 13)
+	    sendChatMessage ();
+    }
+
+    function sendKeyDown (evt)
+    {
+	if (evt.keyCode == 13 /* Enter */ || evt.keyCode == 32 /* Spacebar */)
+	    sendChatMessage ();
+    }
+  </script>
+</body>
+</html>
