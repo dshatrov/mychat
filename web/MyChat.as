@@ -6,7 +6,9 @@ import flash.display.StageScaleMode;
 import flash.display.StageAlign;
 import flash.display.Loader;
 import flash.media.Camera;
+import flash.media.Microphone;
 import flash.media.Video;
+import flash.media.SoundTransform;
 import flash.net.NetConnection;
 import flash.net.NetStream;
 import flash.net.ObjectEncoding;
@@ -25,11 +27,13 @@ public class MyChat extends Sprite
     private var my_video_fullscreen_height : Number;
 
     private var cam : Camera;
+    private var mic : Microphone;
 
     private var peer_video : Video;
     private var my_video : Video;
 
     private var conn : NetConnection;
+    private var stream : NetStream;
 
     private var uri : String;
     private var stream_name : String;
@@ -87,15 +91,20 @@ public class MyChat extends Sprite
     private function onConnNetStatus (event : NetStatusEvent) : void
     {
 	if (event.info.code == "NetConnection.Connect.Success") {
-	    var stream : NetStream = new NetStream (conn);
-	    stream.bufferTime = 0.1;
+	    stream = new NetStream (conn);
+	    stream.bufferTime = 0;
+	    stream.bufferTimeMax = 0.33;
 
 	    peer_video.attachNetStream (stream);
 
 	    stream.play (stream_name);
-
 	    stream.publish (stream_name);
-	    stream.attachCamera (cam);
+
+	    if (cam)
+		stream.attachCamera (cam);
+
+	    if (mic)
+		stream.attachAudio (mic);
 	} else
 	if (event.info.code == "NetConnection.Connect.Closed") {
 	  // TODO
@@ -116,36 +125,55 @@ public class MyChat extends Sprite
 
     private function turnMicOn (event : MouseEvent) : void
     {
+	stream.attachAudio (mic);
 	mic_on = true;
 	showButtons ();
     }
 
     private function turnMicOff (event : MouseEvent) : void
     {
+	stream.attachAudio (null);
 	mic_on = false;
 	showButtons ();
     }
 
     private function turnCamOn (event : MouseEvent) : void
     {
+	stream.attachCamera (cam);
 	cam_on = true;
 	showButtons ();
     }
 
     private function turnCamOff (event : MouseEvent) : void
     {
+	stream.attachCamera (null);
 	cam_on = false;
 	showButtons ();
     }
 
     private function turnSoundOn (event : MouseEvent) : void
     {
+	/* SoundTransform works with a noticable delay */
+	if (stream) {
+//	    if (!stream.soundTransform)
+		stream.soundTransform = new SoundTransform ();
+//	    else
+//		stream.soundTransform.volume = 1;
+	}
+
 	sound_on = true;
 	showButtons ();
     }
 
     private function turnSoundOff (event : MouseEvent) : void
     {
+	if (stream) {
+//	    if (!stream.soundTransform)
+		stream.soundTransform = new SoundTransform (0);
+//	    else
+//		stream.soundTransform.volume = 0;
+	}
+
 	sound_on = false;
 	showButtons ();
     }
@@ -404,6 +432,8 @@ public class MyChat extends Sprite
 	horizontal_mode = false;
 
 	splash = createLoadedElement ("img/splash.png", true /* visible */);
+	// TEST Splash shows itself behint video (flickers)
+	splash.setVisible (false);
 
 	peer_video = new Video();
 	peer_video.width  = 640;
@@ -461,6 +491,12 @@ public class MyChat extends Sprite
 		cam.setMode (320, 240, 15);
 		cam.setQuality (100000, 0);
 	    }
+	}
+
+	if (Microphone.isSupported) {
+	    mic = Microphone.getMicrophone();
+	    if (mic)
+		mic.setLoopBack (false);
 	}
 
 	showButtons ();
