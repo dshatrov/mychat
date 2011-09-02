@@ -70,6 +70,10 @@ private:
 					 void       *_session,
 					 void       *_self);
 
+    static void rtmpCommandMessage (MomentMessage *msg,
+				    void          *_session,
+				    void          *_self);
+
     mt_mutex (mutex) void destroyClientSession (ClientSession *session);
 
     static void clientConnected (MomentClientSession  *srv_session,
@@ -214,6 +218,35 @@ MomentStream* MyChat::startStreaming (char const *stream_name_buf,
     return session->srv_in_stream;
 }
 
+void MyChat::rtmpCommandMessage (MomentMessage * const msg,
+				 void          * const _session,
+				 void          * const _self)
+{
+    MyChat * const self = static_cast <MyChat*> (_self);
+    ClientSession * const session = static_cast <ClientSession*> (_session);
+
+    logD_ (_func_);
+
+    self->mutex.lock ();
+
+    if (!session->valid
+	|| !session->peer_session
+	|| !session->peer_session->valid)
+    {
+	self->mutex.unlock ();
+	return;
+    }
+
+    assert (session->peer_session->srv_session);
+    MomentClientSession * const srv_session = session->peer_session->srv_session;
+    moment_client_session_ref (srv_session);
+
+    self->mutex.unlock ();
+
+    moment_client_send_rtmp_command_message_passthrough (srv_session, msg);
+    moment_client_session_unref (srv_session);
+}
+
 void MyChat::init (char const * const prefix_buf,
 		   size_t       const prefix_len)
 {
@@ -224,6 +257,7 @@ void MyChat::init (char const * const prefix_buf,
     moment_client_handler_set_disconnected (ch, clientDisconnected, this);
     moment_client_handler_set_start_watching (ch, startWatching, this);
     moment_client_handler_set_start_streaming (ch, startStreaming, this);
+    moment_client_handler_set_rtmp_command_message (ch, rtmpCommandMessage, this);
 
     moment_add_client_handler (ch, prefix_buf, prefix_len);
 
