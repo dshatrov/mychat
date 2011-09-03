@@ -29,6 +29,13 @@
       left: 0;
       width: 100%;
       margin-top: 10px;
+
+      /* Flash movie gets reloaded in Firefox when display:none is applied.
+       * visibility:hidden and right:-99999px is used as a workaround.
+       * There's a minor problem with vertical scrollbar appearing earlier
+       * than expected because of this. */
+      visibility: hidden;
+      left: -99999px;
     }
 
     .body {
@@ -50,13 +57,13 @@
     }
 
     .code_input {
-      color: #333333;
+      /* Breaks placeholder color in Firefox.
+         color: #333333; */
       height: 30px;
       border: 1px solid #cccccc;
       padding-left: 2px;
       padding-right: 2px;
       font-size: 16px;
-/*      vertical-align: middle; */
     }
 
     .connect_button {
@@ -127,7 +134,8 @@
     .chat_input {
       width: 550px;
       height: 30px;
-      color: #333333;
+      /* Breaks placeholder color in Firefox.
+         color: #333333; */
       border: 5px solid #707088;
       border-right: 0;
       outline: 0;
@@ -182,6 +190,22 @@
 	padding-top: 0.75ex;
 	margin-top: 0.75ex;
     }
+
+    .status_msg {
+	color: #a0a0a0;
+	padding-left: 8px;
+	padding-top: 0.5ex;
+	font-style: oblique;
+    }
+
+    .lead_status_msg {
+	color: #a0a0a0;
+	border-top: 1px dotted #a0a0d0;
+	padding-left: 8px;
+	padding-top: 0.75ex;
+	margin-top: 0.75ex;
+	font-style: oblique;
+    }
   </style>
   <script type="text/javascript">
     var flash_initialized = false;
@@ -203,7 +227,13 @@
     function connect ()
     {
 	document.getElementById ("WelcomeScreen").style.display = "none";
+
 	document.getElementById ("ChatApp").style.display = "block";
+	{
+	    header = document.getElementById ("Header");
+	    header.style.left = "0";
+	    header.style.visibility = "visible";
+	}
 
 	doConnect ();
 
@@ -216,7 +246,21 @@
 	if (!flash_initialized)
 	    return;
 
-	document ["MyChat"].doConnect (document.getElementById ("CodeInput").value);
+	document ["MyChat"].connect (document.getElementById ("CodeInput").value);
+    }
+
+    function newCall ()
+    {
+	document.getElementById ("ChatApp").style.display = "none";
+	{
+	    header = document.getElementById ("Header");
+	    header.style.left = "-99999px";
+	    header.style.visibility = "hidden";
+	}
+
+	document.getElementById ("WelcomeScreen").style.display = "block";
+
+	document.getElementById ("CodeInput").focus();
     }
   </script>
 </head>
@@ -229,7 +273,9 @@
 	    <tr>
 	      <td style="vertical-align: middle; padding-right: 1ex">
 		<span style="color: #808080">Enter conversation code:&nbsp;</span>
-		<input id="CodeInput" class="code_input" type="text" placeholder="Conversation code" onkeydown="codeKeyDown(event)"/>
+		<span style="color: #333333">
+		  <input id="CodeInput" class="code_input" type="text" placeholder="Conversation code" onkeydown="codeKeyDown(event)"/>
+		</span>
 	      </td>
 	      <td class="connect_button" onclick="connect()">
 		Connect
@@ -240,37 +286,37 @@
       </tr>
     </table>
   </div>
-  <div id="ChatApp" class="chat_app">
-    <div style="height: 490px; padding-bottom: 120px; width: 100%"/>
-    <div class="header">
-      <div class="flash_div">
-	<!-- wmode="direct" doesn't work -->
-	<object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"
+  <div id="Header" class="header">
+    <div class="flash_div">
+      <!-- wmode="direct" doesn't work -->
+      <object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"
+	  width="100%"
+	  height="100%"
+	  id="MyChat"
+	  align="Default">
+	<param name="movie" value="MyChat.swf"/>
+	<param name="bgcolor" value="#000000"/>
+	<param name="scale" value="noscale"/>
+	<param name="quality" value="high"/>
+	<param name="allowfullscreen" value="true"/>
+	<param name="allowscriptaccess" value="always"/>
+	<embed src="MyChat.swf"
+	    name="MyChat"
+	    align="Default"
 	    width="100%"
 	    height="100%"
-	    id="MyChat"
-	    align="Default">
-	  <param name="movie" value="MyChat.swf"/>
-	  <param name="bgcolor" value="#000000"/>
-	  <param name="scale" value="noscale"/>
-	  <param name="quality" value="high"/>
-	  <param name="allowfullscreen" value="true"/>
-	  <param name="allowscriptaccess" value="always"/>
-	  <embed src="MyChat.swf"
-	      name="MyChat"
-	      align="Default"
-	      width="100%"
-	      height="100%"
-	      bgcolor="#000000"
-	      scale="noscale"
-	      quality="high"
-	      allowfullscreen="true"
-	      allowscriptaccess="always"
-	      type="application/x-shockwave-flash"
-	      pluginspage="http://www.adobe.com/shockwave/download/index.cgi?P1_Prod_Version=ShockwaveFlash"/>
-	</object>
-      </div>
+	    bgcolor="#000000"
+	    scale="noscale"
+	    quality="high"
+	    allowfullscreen="true"
+	    allowscriptaccess="always"
+	    type="application/x-shockwave-flash"
+	    pluginspage="http://www.adobe.com/shockwave/download/index.cgi?P1_Prod_Version=ShockwaveFlash"/>
+      </object>
     </div>
+  </div>
+  <div id="ChatApp" class="chat_app">
+    <div style="height: 490px; padding-bottom: 120px; width: 100%"/>
     <div class="body">
       <div class="chat_frame">
 	<div id="ChatScroll" class="chat_scroll">
@@ -283,7 +329,7 @@
       <div class="input_div">
 	<table style="width: 100%; height: 100%; border: 0" cellpadding="0" cellspacing="0">
 	  <tr>
-	    <td style="text-align: left">
+	    <td style="text-align: left; color: #333333">
 	      <input id="ChatInput" class="chat_input" type="text" placeholder="Enter chat message here" onkeydown="chatKeyDown(event)"/>
 	    </td>
 	    <td tabindex="0" class="send_button" style="width: 100%; vertical-align: middle" onclick="sendButtonClick()" onkeydown="sendKeyDown(event)">
@@ -301,39 +347,50 @@
     chat_scroll = document.getElementById ("ChatScroll");
     chat_div    = document.getElementById ("ChatDiv");
 
-    got_prv_phrase = false;
+    got_prv_msg = false;
     prv_phrase_is_own = false;
+    prv_msg_is_status = false;
 
-    function doAddChatMessage (msg, is_own)
+    function doAddChatMessage (msg, is_own, is_status)
     {
         var scroll_to_bottom = (chat_scroll.scrollTop + chat_scroll.clientHeight >= chat_scroll.scrollHeight);
 
 	var msg_div = document.createElement ('div');
 
-	if (is_own) {
-	    if (got_prv_phrase) {
-		if (prv_phrase_is_own)
-		    msg_div.className = "own_chat_phrase";
-		else
-		    msg_div.className = "lead_own_chat_phrase";
+	if (is_status) {
+	    if (prv_msg_is_status || !got_prv_msg) {
+		msg_div.className = "status_msg";
 	    } else {
-		msg_div.className = "own_chat_phrase";
+		msg_div.className = "lead_status_msg";
 	    }
-
-	    prv_phrase_is_own = true;
+	    prv_msg_is_status = true;
 	} else {
-	    if (got_prv_phrase) {
-		if (!prv_phrase_is_own)
-		    msg_div.className = "chat_phrase";
-		else
-		    msg_div.className = "lead_chat_phrase";
-	    } else {
-		msg_div.className = "chat_phrase";
-	    }
+	    if (is_own) {
+		if (got_prv_msg) {
+		    if (prv_phrase_is_own && !prv_msg_is_status)
+			msg_div.className = "own_chat_phrase";
+		    else
+			msg_div.className = "lead_own_chat_phrase";
+		} else {
+		    msg_div.className = "own_chat_phrase";
+		}
 
-	    prv_phrase_is_own = false;
+		prv_phrase_is_own = true;
+	    } else {
+		if (got_prv_msg) {
+		    if (!prv_phrase_is_own && !prv_msg_is_status)
+			msg_div.className = "chat_phrase";
+		    else
+			msg_div.className = "lead_chat_phrase";
+		} else {
+		    msg_div.className = "chat_phrase";
+		}
+
+		prv_phrase_is_own = false;
+	    }
+	    prv_msg_is_status = false;
 	}
-	got_prv_phrase = true;
+	got_prv_msg = true;
 
 	var p_tag = document.createElement ('span');
 	var msg_text = document.createTextNode (msg);
@@ -347,7 +404,12 @@
 
     function addChatMessage (msg)
     {
-	doAddChatMessage (msg, false);
+	doAddChatMessage (msg, false /* is_own */, false /* is_status */);
+    }
+
+    function addStatusMessage (msg)
+    {
+	doAddChatMessage (msg, false /* is_own */, true /* is_status */);
     }
 
     function sendChatMessage ()
@@ -355,7 +417,7 @@
 	msg = chat_input.value;
 	chat_input.value = "";
 
-	doAddChatMessage (msg, true /* is_own */);
+	doAddChatMessage (msg, true /* is_own */, false /* is_status */);
 	flash.sendChatMessage (msg);
     }
 
