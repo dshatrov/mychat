@@ -32,8 +32,15 @@ public class MyChat extends Sprite
     private var peer_video : Video;
     private var my_video : Video;
 
+    private var conn_closed : Boolean;
     private var conn : NetConnection;
     private var stream : NetStream;
+
+    private var redialing : Boolean;
+
+    private var reconnect_interval : uint;
+    private var reconnect_timer : uint;
+    private var reconnect_timer_active : Boolean;
 
     private var uri : String;
     private var stream_name : String;
@@ -47,17 +54,20 @@ public class MyChat extends Sprite
     // If true, then horizontal mode is enabled.
     private var horizontal_mode : Boolean;
 
-    private var roll_button   : LoadedElement;
-    private var unroll_button : LoadedElement;
-    private var end_call_button   : LoadedElement;
-    private var mic_button_on     : LoadedElement;
-    private var mic_button_off    : LoadedElement;
-    private var cam_button_on     : LoadedElement;
-    private var cam_button_off    : LoadedElement;
-    private var sound_button_on   : LoadedElement;
-    private var sound_button_off  : LoadedElement;
-    private var fullscreen_button : LoadedElement;
-    private var horizontal_button : LoadedElement;
+    private var roll_button          : LoadedElement;
+    private var unroll_button        : LoadedElement;
+    private var new_call_button      : LoadedElement;
+    private var redial_button        : LoadedElement;
+    private var end_call_button      : LoadedElement;
+    private var end_call_grey_button : LoadedElement;
+    private var mic_button_on        : LoadedElement;
+    private var mic_button_off       : LoadedElement;
+    private var cam_button_on        : LoadedElement;
+    private var cam_button_off       : LoadedElement;
+    private var sound_button_on      : LoadedElement;
+    private var sound_button_off     : LoadedElement;
+    private var fullscreen_button    : LoadedElement;
+    private var horizontal_button    : LoadedElement;
 
     private var hide_buttons_timer : uint;
 
@@ -76,9 +86,61 @@ public class MyChat extends Sprite
 	ExternalInterface.call ("addChatMessage", msg);
     }
 
-    private function doConnect (code : String) : void
+    public function addStatusMessage (msg : String) : void
     {
+	ExternalInterface.call ("addStatusMessage", msg);
+    }
+
+    public function showSplash () : void
+    {
+	peer_video.visible = false;
+	splash.setVisible (true);
+    }
+
+    public function showPeerVideo () : void
+    {
+	splash.setVisible (false);
+	peer_video.visible = true;
+    }
+
+    public function peerMicOn () : void
+    {
+	addStatusMessage ("peerMicOn");
+    }
+
+    public function peerMicOff () : void
+    {
+	addStatusMessage ("peerMicOff");
+    }
+
+    public function peerCamOn () : void
+    {
+	addStatusMessage ("peerCamOn");
+// Unnecessary	showPeerVideo ();
+    }
+
+    public function peerCamOff () : void
+    {
+	addStatusMessage ("peerCamOff");
+	showSplash ();
+    }
+
+    private function doConnect (code : String, reconnect : Boolean) : void
+    {
+	addStatusMessage ("doConnect: code: \"" + code + "\", reconnect: " + reconnect);
+
 	stream_name = code;
+
+	if (!reconnect) {
+	    reconnect_interval = 0;
+	} else {
+	    if (reconnect_interval == 0)
+		reconnect_interval = 5000;
+	}
+
+	conn_closed = false;
+	end_call_button.setVisible (true);
+	end_call_grey_button.setVisible (false);
 
 	conn = new NetConnection ();
 	conn.client = new Client (this);
@@ -88,27 +150,105 @@ public class MyChat extends Sprite
 	conn.connect (uri + '/' + code);
     }
 
+    private function connect (code : String) : void
+    {
+	new_call_button.setVisible (false);
+	showSplash ();
+	doConnect (code, false /* reconnect */);
+    }
+
+    private function reconnectTick () : void
+    {
+	doConnect (stream_name, true /* reconnect */);
+    }
+
     private function onConnNetStatus (event : NetStatusEvent) : void
     {
+	addStatusMessage ("onConnNetStatus: " + event.info.code);
+
 	if (event.info.code == "NetConnection.Connect.Success") {
+	    if (reconnect_timer_active) {
+		clearInterval (reconnect_timer);
+		reconnect_timer_active = false;
+	    }
+
 	    stream = new NetStream (conn);
-	    stream.bufferTime = 0;
+	    stream.bufferTime = 0; // Live stream
 	    stream.bufferTimeMax = 0.33;
+
+	    if (!sound_on)
+		doTurnSoundOff ();
 
 	    peer_video.attachNetStream (stream);
 
 	    stream.play (stream_name);
 	    stream.publish (stream_name);
 
-	    if (cam)
+	    if (cam && cam_on)
 		stream.attachCamera (cam);
 
-	    if (mic)
+	    if (mic && mic_on)
 		stream.attachAudio (mic);
 	} else
-	if (event.info.code == "NetConnection.Connect.Closed") {
-	  // TODO
+	if (event.info.code == "NetConnection.Connect.Closed" ||
+	    event.info.code == "NetConnection.Connect.Failed")
+	{
+	    if (redialing)
+		return;
+
+	    if (!conn_closed && !reconnect_timer_active) {
+		if (reconnect_interval == 0) {
+		    doConnect (stream_name, true /* reconnect */);
+		    return;
+		}
+
+		addStatusMessage ("onConnNetStatus: starting reconnect timer, interval: " + reconnect_interval);
+		reconnect_timer = setInterval (reconnectTick, reconnect_interval);
+		reconnect_timer_active = true;
+	    }
 	}
+    }
+
+    private function newCall (event : MouseEvent) : void
+    {
+	addStatusMessage ("newCall");
+	ExternalInterface.call ("newCall");
+    }
+
+    private function redial (event : MouseEvent) : void
+    {
+	if (reconnect_timer_active) {
+	    clearInterval (reconnect_timer);
+	    reconnect_timer_active = false;
+	}
+
+	new_call_button.setVisible (false);
+
+	redialing = true;
+	conn.close ();
+	redialing = false;
+
+	doConnect (stream_name, false /* reconnect */);
+    }
+
+    private function endCall (event : MouseEvent) : void
+    {
+	if (reconnect_timer_active) {
+	    clearInterval (reconnect_timer);
+	    reconnect_timer_active = false;
+	}
+
+	conn_closed = true;
+	conn.close ();
+
+	end_call_grey_button.setVisible (true);
+	end_call_button.setVisible (false);
+
+	peer_video.visible = false;
+	splash.setVisible (false);
+
+	// TODO Show "Call ended. Make another call" button.
+	new_call_button.setVisible (true);
     }
 
     private function rollMyVideo (event : MouseEvent) : void
@@ -128,6 +268,7 @@ public class MyChat extends Sprite
 	stream.attachAudio (mic);
 	mic_on = true;
 	showButtons ();
+	conn.call ("mychat_mic_on", null);
     }
 
     private function turnMicOff (event : MouseEvent) : void
@@ -135,6 +276,7 @@ public class MyChat extends Sprite
 	stream.attachAudio (null);
 	mic_on = false;
 	showButtons ();
+	conn.call ("mychat_mic_off", null);
     }
 
     private function turnCamOn (event : MouseEvent) : void
@@ -142,6 +284,7 @@ public class MyChat extends Sprite
 	stream.attachCamera (cam);
 	cam_on = true;
 	showButtons ();
+	conn.call ("mychat_cam_on", null);
     }
 
     private function turnCamOff (event : MouseEvent) : void
@@ -149,10 +292,14 @@ public class MyChat extends Sprite
 	stream.attachCamera (null);
 	cam_on = false;
 	showButtons ();
+	conn.call ("mychat_cam_off", null);
     }
 
     private function turnSoundOn (event : MouseEvent) : void
     {
+	sound_on = true;
+	showButtons ();
+
 	/* SoundTransform works with a noticable delay */
 	if (stream) {
 //	    if (!stream.soundTransform)
@@ -160,12 +307,9 @@ public class MyChat extends Sprite
 //	    else
 //		stream.soundTransform.volume = 1;
 	}
-
-	sound_on = true;
-	showButtons ();
     }
 
-    private function turnSoundOff (event : MouseEvent) : void
+    private function doTurnSoundOff () : void
     {
 	if (stream) {
 //	    if (!stream.soundTransform)
@@ -173,9 +317,14 @@ public class MyChat extends Sprite
 //	    else
 //		stream.soundTransform.volume = 0;
 	}
+    }
 
+    private function turnSoundOff (event : MouseEvent) : void
+    {
 	sound_on = false;
 	showButtons ();
+
+	doTurnSoundOff ();
     }
 
     private function toggleFullscreen (event : MouseEvent) : void
@@ -212,8 +361,17 @@ public class MyChat extends Sprite
 	unroll_button.obj.x = my_video.x;
 	unroll_button.obj.y = my_video.y + my_video.height - unroll_button.obj.height;
 
+	new_call_button.obj.x = (stage_width - new_call_button.obj.width) / 2;
+	new_call_button.obj.y = (stage_height - new_call_button.obj.height) / 2;
+
+	redial_button.obj.x = stage_width - redial_button.obj.width - 90;
+	redial_button.obj.y = 20;
+
 	end_call_button.obj.x = stage_width - end_call_button.obj.width - 20;
 	end_call_button.obj.y = 20;
+
+	end_call_grey_button.obj.x = end_call_button.obj.x;
+	end_call_grey_button.obj.y = end_call_button.obj.y;
 
 	horizontal_button.obj.x = stage_width - horizontal_button.obj.width - 20;
 	horizontal_button.obj.y = stage_height - horizontal_button.obj.height - 90;
@@ -285,7 +443,9 @@ public class MyChat extends Sprite
 	buttons_visible = false;
 	roll_button.setVisible (false);
 	unroll_button.setVisible (false);
+	redial_button.setVisible (false);
 	end_call_button.setVisible (false);
+	end_call_grey_button.setVisible (false);
 	mic_button_on.setVisible (false);
 	mic_button_off.setVisible (false);
 	cam_button_on.setVisible (false);
@@ -313,7 +473,15 @@ public class MyChat extends Sprite
 	    unroll_button.setVisible (false);
 	}
 
-	end_call_button.setVisible (true);
+	redial_button.setVisible (true);
+
+	if (!conn_closed) {
+	    end_call_button.setVisible (true);
+	    end_call_grey_button.setVisible (false);
+	} else {
+	    end_call_grey_button.setVisible (true);
+	    end_call_button.setVisible (false);
+	}
 
 	if (mic_on) {
 	    mic_button_on.setVisible (true);
@@ -417,6 +585,13 @@ public class MyChat extends Sprite
         stage_width = stage.stageWidth;
         stage_height = stage.stageHeight;
 
+	conn_closed = false;
+
+	redialing = false;
+
+	reconnect_interval = 0;
+	reconnect_timer_active = false;
+
 	my_video_normal_width  = 160;
 	my_video_normal_height = 120;
 	my_video_fullscreen_width  = 240;
@@ -432,8 +607,8 @@ public class MyChat extends Sprite
 	horizontal_mode = false;
 
 	splash = createLoadedElement ("img/splash.png", true /* visible */);
-	// TEST Splash shows itself behint video (flickers)
-	splash.setVisible (false);
+//	// TEST Splash shows itself behind video (flickers)
+//	splash.setVisible (false);
 
 	peer_video = new Video();
 	peer_video.width  = 640;
@@ -450,12 +625,20 @@ public class MyChat extends Sprite
 	addChild (peer_video);
 	addChild (my_video);
 
+	new_call_button = createLoadedElement ("img/new_call.png", false /* visible */);
+	new_call_button.obj.addEventListener (MouseEvent.CLICK, newCall);
+
+	redial_button = createLoadedElement ("img/redial.png", true /* visible */);
+	redial_button.obj.addEventListener (MouseEvent.CLICK, redial);
+
+	end_call_button = createLoadedElement ("img/end_call.png", true /* visible */);
+	end_call_button.obj.addEventListener (MouseEvent.CLICK, endCall);
+	end_call_grey_button = createLoadedElement ("img/end_call_grey.png", true /* visible */);
+
 	roll_button = createLoadedElement ("img/roll.png", true /* visible */);
 	roll_button.obj.addEventListener (MouseEvent.CLICK, rollMyVideo);
 	unroll_button = createLoadedElement ("img/unroll.png", true /* visible */);
 	unroll_button.obj.addEventListener (MouseEvent.CLICK, unrollMyVideo);
-
-	end_call_button = createLoadedElement ("img/end_call.png", true /* visible */);
 
 	mic_button_on  = createLoadedElement ("img/mic_on.png", true /* visible */);
 	mic_button_on.obj.addEventListener (MouseEvent.CLICK, turnMicOff);
@@ -479,7 +662,7 @@ public class MyChat extends Sprite
 	horizontal_button.obj.addEventListener (MouseEvent.CLICK, toggleHorizontal);
 
 	ExternalInterface.addCallback ("sendChatMessage", sendChatMessage);
-	ExternalInterface.addCallback ("doConnect", doConnect);
+	ExternalInterface.addCallback ("connect", connect);
 
 	uri = "rtmp://172.16.0.17:1935/mychat";
 	stream_name = "video";
@@ -499,6 +682,7 @@ public class MyChat extends Sprite
 		mic.setLoopBack (false);
 	}
 
+	showSplash ();
 	showButtons ();
 
 	doResize ();
@@ -554,7 +738,27 @@ internal class Client
 
     public function mychat_chat (msg : String) : void
     {
-	mychat.addChatMessage ('from: ' + msg);
+	mychat.addChatMessage (msg);
+    }
+
+    public function mychat_mic_on () : void
+    {
+	mychat.peerMicOn ();
+    }
+
+    public function mychat_mic_off () : void
+    {
+	mychat.peerMicOff ();
+    }
+
+    public function mychat_cam_on () : void
+    {
+	mychat.peerCamOn ();
+    }
+
+    public function mychat_cam_off () : void
+    {
+	mychat.peerCamOff ();
     }
 
     public function Client (mychat : MyChat)
