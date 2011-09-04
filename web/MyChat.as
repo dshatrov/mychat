@@ -76,6 +76,7 @@ public class MyChat extends Sprite
     private var horizontal_button    : LoadedElement;
 
     private var hide_buttons_timer : uint;
+    private var hide_buttons_timer_active : Boolean;
 
     private var splash : LoadedElement;
 
@@ -131,6 +132,7 @@ public class MyChat extends Sprite
 	peer_cam_on = true;
 	repositionButtons ();
 	peer_cam_off_mark.setVisible (false);
+        peer_video.addEventListener (Event.ENTER_FRAME, onEnterFrame);
     }
 
     public function peerCamOff () : void
@@ -142,9 +144,23 @@ public class MyChat extends Sprite
 	showSplash ();
     }
 
+    private function onEnterFrame (event : Event) : void
+    {
+	addStatusMessage ("onEnterFrame");
+
+	peer_video.removeEventListener (Event.ENTER_FRAME, onEnterFrame);
+	showPeerVideo ();
+	if (buttons_visible) {
+	    // Horizontal mode button may need to be shown.
+	    showButtons ();
+	}
+    }
+
     private function doConnect (code : String, reconnect : Boolean) : void
     {
 	addStatusMessage ("doConnect: code: \"" + code + "\", reconnect: " + reconnect);
+
+	peer_video.removeEventListener (Event.ENTER_FRAME, onEnterFrame);
 
 	stream_name = code;
 
@@ -204,6 +220,8 @@ public class MyChat extends Sprite
 
 	    peer_video.attachNetStream (stream);
 
+	    peer_video.addEventListener (Event.ENTER_FRAME, onEnterFrame);
+
 	    stream.play (stream_name);
 	    stream.publish (stream_name);
 
@@ -216,6 +234,8 @@ public class MyChat extends Sprite
 	if (event.info.code == "NetConnection.Connect.Closed" ||
 	    event.info.code == "NetConnection.Connect.Failed")
 	{
+	    peer_video.removeEventListener (Event.ENTER_FRAME, onEnterFrame);
+
 	    if (redialing)
 		return;
 
@@ -481,6 +501,11 @@ public class MyChat extends Sprite
 
     private function hideButtonsTick () : void
     {
+	if (hide_buttons_timer_active) {
+	    clearInterval (hide_buttons_timer);
+	    hide_buttons_timer_active = false;
+	}
+
 	buttons_visible = false;
 	roll_button.setVisible (false);
 	unroll_button.setVisible (false);
@@ -561,12 +586,15 @@ public class MyChat extends Sprite
 
     private function onMouseMove (event : MouseEvent) : void
     {
-	if (hide_buttons_timer) {
+	if (hide_buttons_timer_active) {
 	    clearInterval (hide_buttons_timer);
-	    hide_buttons_timer = 0;
+	    hide_buttons_timer_active = false;
 	}
 
-	hide_buttons_timer = setInterval (hideButtonsTick, 5000);
+	if (!hide_buttons_timer_active) {
+	    hide_buttons_timer = setInterval (hideButtonsTick, 5000);
+	    hide_buttons_timer_active = true;
+	}
 
 	showButtons ();
     }
@@ -643,6 +671,7 @@ public class MyChat extends Sprite
 
 	buttons_visible = true;
 	hide_buttons_timer = setInterval (hideButtonsTick, 5000);
+	hide_buttons_timer_active = true;
 
 	mic_on = true;
 	cam_on = true;
@@ -651,8 +680,6 @@ public class MyChat extends Sprite
 	horizontal_mode = false;
 
 	splash = createLoadedElement ("img/splash.png", true /* visible */);
-//	// TEST Splash shows itself behind video (flickers)
-//	splash.setVisible (false);
 
 	peer_video = new Video();
 	peer_video.width  = 640;
