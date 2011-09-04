@@ -238,6 +238,11 @@
 	doConnect ();
 
 	document.getElementById ("ChatInput").focus();
+
+	{
+	    chat_scroll = document.getElementById ("ChatScroll");
+	    chat_scroll.scrollTop = chat_scroll.scrollHeight;
+	}
     }
 
     function doConnect ()
