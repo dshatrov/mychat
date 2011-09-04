@@ -54,6 +54,12 @@ public class MyChat extends Sprite
     // If true, then horizontal mode is enabled.
     private var horizontal_mode : Boolean;
 
+    private var peer_mic_on : Boolean;
+    private var peer_cam_on : Boolean;
+
+    private var peer_mic_off_mark : LoadedElement;
+    private var peer_cam_off_mark : LoadedElement;
+
     private var roll_button          : LoadedElement;
     private var unroll_button        : LoadedElement;
     private var new_call_button      : LoadedElement;
@@ -106,22 +112,33 @@ public class MyChat extends Sprite
     public function peerMicOn () : void
     {
 	addStatusMessage ("peerMicOn");
+	peer_mic_on = true;
+	repositionButtons ();
+	peer_mic_off_mark.setVisible (false);
     }
 
     public function peerMicOff () : void
     {
 	addStatusMessage ("peerMicOff");
+	peer_mic_on = false;
+	repositionButtons ();
+	peer_mic_off_mark.setVisible (true);
     }
 
     public function peerCamOn () : void
     {
 	addStatusMessage ("peerCamOn");
-// Unnecessary	showPeerVideo ();
+	peer_cam_on = true;
+	repositionButtons ();
+	peer_cam_off_mark.setVisible (false);
     }
 
     public function peerCamOff () : void
     {
 	addStatusMessage ("peerCamOff");
+	peer_cam_on = false;
+	repositionButtons ();
+	peer_cam_off_mark.setVisible (true);
 	showSplash ();
     }
 
@@ -172,6 +189,12 @@ public class MyChat extends Sprite
 		reconnect_timer_active = false;
 	    }
 
+	    if (!mic_on)
+		conn.call ("mychat_mic_off", null);
+
+	    if (!cam_on)
+		conn.call ("mychat_cam_off", null);
+
 	    stream = new NetStream (conn);
 	    stream.bufferTime = 0; // Live stream
 	    stream.bufferTimeMax = 0.33;
@@ -213,6 +236,9 @@ public class MyChat extends Sprite
     {
 	addStatusMessage ("newCall");
 	ExternalInterface.call ("newCall");
+
+	if (stage.displayState == "fullScreen")
+	    stage.displayState = "normal";
     }
 
     private function redial (event : MouseEvent) : void
@@ -222,7 +248,13 @@ public class MyChat extends Sprite
 	    reconnect_timer_active = false;
 	}
 
+	peer_mic_off_mark.setVisible (false);
+	peer_cam_off_mark.setVisible (false);
+
 	new_call_button.setVisible (false);
+
+	if (conn_closed)
+	    showSplash ();
 
 	redialing = true;
 	conn.close ();
@@ -240,6 +272,9 @@ public class MyChat extends Sprite
 
 	conn_closed = true;
 	conn.close ();
+
+	peer_mic_off_mark.setVisible (false);
+	peer_cam_off_mark.setVisible (false);
 
 	end_call_grey_button.setVisible (true);
 	end_call_button.setVisible (false);
@@ -355,6 +390,12 @@ public class MyChat extends Sprite
 
     private function repositionButtons () : void
     {
+	peer_mic_off_mark.obj.x = 25;
+	peer_mic_off_mark.obj.y = 25;
+
+	peer_cam_off_mark.obj.x = peer_mic_on ? 25 : 90;
+	peer_cam_off_mark.obj.y = 25;
+
 	roll_button.obj.x = my_video.x;
 	roll_button.obj.y = my_video.y + my_video.height - roll_button.obj.height;
 
@@ -509,10 +550,13 @@ public class MyChat extends Sprite
 
 	fullscreen_button.setVisible (true);
 
-	if (!videoShouldBeHorizontal ())
+	if (peer_video.visible &&
+	    !videoShouldBeHorizontal ())
+	{
 	    horizontal_button.setVisible (true);
-	else
+	} else {
 	    horizontal_button.setVisible (false);
+	}
     }
 
     private function onMouseMove (event : MouseEvent) : void
@@ -624,6 +668,12 @@ public class MyChat extends Sprite
 
 	addChild (peer_video);
 	addChild (my_video);
+
+	peer_mic_on = true;
+	peer_cam_on = true;
+
+	peer_mic_off_mark = createLoadedElement ("img/peer_mic_off.png", false /* visible */);
+	peer_cam_off_mark = createLoadedElement ("img/peer_cam_off.png", false /* visible */);
 
 	new_call_button = createLoadedElement ("img/new_call.png", false /* visible */);
 	new_call_button.obj.addEventListener (MouseEvent.CLICK, newCall);
