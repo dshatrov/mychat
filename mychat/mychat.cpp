@@ -97,13 +97,20 @@ public:
   // TODO ~MyChat() destructor
 };
 
-MyChat glob_mychat;
+static MyChat glob_mychat;
+
+static unsigned char glob_peer_disconnected_buf [512];
+static size_t glob_peer_disconnected_len;
 
 static unsigned char glob_mic_off_buf [512];
 static size_t glob_mic_off_len;
 
 static unsigned char glob_cam_off_buf [512];
 static size_t glob_cam_off_len;
+
+static char const peer_connected_str [] = "mychat_peer_connected";
+static char const peer_disconnected_str [] = "mychat_peer_disconnected";
+static char const end_call_str [] = "mychat_end_call";
 
 static char const mic_on_str  [] = "mychat_mic_on";
 static char const mic_off_str [] = "mychat_mic_off";
@@ -120,6 +127,13 @@ mt_mutex (mutex) void MyChat::destroyClientSession (ClientSession * const sessio
     session->valid = false;
 
     MyChat * const self = session->mychat;
+
+    if (session->peer_session) {
+	ClientSession * const peer_session = session->peer_session;
+	session->peer_session->peer_session = NULL;
+	session->peer_session = NULL;
+	self->destroyClientSession (peer_session);
+    }
 
     moment_client_session_unref (session->srv_session);
 
@@ -158,6 +172,19 @@ void MyChat::clientConnected (MomentClientSession  * const srv_session,
     session->srv_session = srv_session;
     moment_client_session_ref (srv_session);
 
+    unsigned char peer_connected_msg_buf [512];
+    size_t peer_connected_msg_len;
+    {
+	MomentAmfEncoder * const encoder = moment_amf_encoder_new_AMF0 ();
+	moment_amf_encoder_add_string (encoder, peer_connected_str, sizeof (peer_connected_str) - 1);
+	moment_amf_encoder_add_number (encoder, 0.0);
+	moment_amf_encoder_add_null_object (encoder);
+	if (moment_amf_encoder_encode (encoder, peer_connected_msg_buf, sizeof (peer_connected_msg_buf), &peer_connected_msg_len))
+	    abort ();
+
+	moment_amf_encoder_delete (encoder);
+    }
+
     self->mutex.lock ();
 
     ClientSessionHash::EntryKey session_key = self->session_hash.lookup (ConstMemory (app_name_buf, app_name_len));
@@ -179,6 +206,10 @@ void MyChat::clientConnected (MomentClientSession  * const srv_session,
 
 	session->list_el = self->linked_sessions.append (session);
 	peer_session->list_el = self->linked_sessions.append (peer_session);
+
+	logD_ (_func, "sending peer_connected");
+	moment_client_send_rtmp_command_message (srv_session, peer_connected_msg_buf, peer_connected_msg_len);
+	moment_client_send_rtmp_command_message (peer_session->srv_session, peer_connected_msg_buf, peer_connected_msg_len);
 
 	if (!peer_session->mic_on) {
 	    logD_ (_func, "sending mychat_mic_off");
@@ -213,14 +244,30 @@ void MyChat::clientDisconnected (void * const _session,
     ClientSession * const session = static_cast <ClientSession*> (_session);
 
     self->mutex.lock ();
+    if (!session->valid) {
+	self->mutex.unlock ();
+	return;
+    }
+
+    MomentClientSession *peer_srv_session = NULL;
+
     if (session->peer_session) {
 	ClientSession * const peer_session = session->peer_session;
-	session->peer_session->peer_session = NULL;
-	session->peer_session = NULL;
-	self->destroyClientSession (peer_session);
+
+	peer_srv_session = peer_session->srv_session;
+	moment_client_session_ref (peer_srv_session);
     }
     self->destroyClientSession (session);
     self->mutex.unlock ();
+
+    if (peer_srv_session) {
+	moment_client_send_rtmp_command_message (peer_srv_session,
+						 glob_peer_disconnected_buf,
+						 glob_peer_disconnected_len);
+
+	moment_client_session_disconnect (peer_srv_session);
+	moment_client_session_unref (peer_srv_session);
+    }
 
     session->unref();
 }
@@ -290,6 +337,33 @@ void MyChat::rtmpCommandMessage (MomentMessage * const msg,
 	{
 	    logD_ (_func, "cam off");
 	    session->cam_on = false;
+	} else
+	if (method_name_len == sizeof (end_call_str) - 1
+	    && !memcmp (method_name, end_call_str, sizeof (end_call_str) - 1))
+	{
+	    logD_ (_func, "end call");
+	    MomentClientSession *peer_srv_session = NULL;
+	    if (session->peer_session) {
+		peer_srv_session = session->peer_session->srv_session;
+		moment_client_session_ref (peer_srv_session);
+	    }
+
+	    MomentClientSession * const srv_session = session->srv_session;
+	    moment_client_session_ref (srv_session);
+
+	    self->destroyClientSession (session);
+	    self->mutex.unlock ();
+
+	    moment_client_session_disconnect (srv_session);
+	    moment_client_session_unref (srv_session);
+
+	    if (peer_srv_session) {
+		moment_client_send_rtmp_command_message_passthrough (peer_srv_session, msg);
+		moment_client_session_disconnect (peer_srv_session);
+		moment_client_session_unref (peer_srv_session);
+	    }
+
+	    goto _return;
 	}
     }
 
@@ -322,6 +396,18 @@ void MyChat::init (char const * const prefix_buf,
 
     {
 	MomentAmfEncoder * const encoder = moment_amf_encoder_new_AMF0 ();
+	moment_amf_encoder_add_string (encoder, peer_disconnected_str, sizeof (peer_disconnected_str) - 1);
+	moment_amf_encoder_add_number (encoder, 0.0);
+	moment_amf_encoder_add_null_object (encoder);
+	if (moment_amf_encoder_encode (encoder,
+				       glob_peer_disconnected_buf,
+				       sizeof (glob_peer_disconnected_buf),
+				       &glob_peer_disconnected_len))
+	{
+	    abort ();
+	}
+
+	moment_amf_encoder_reset (encoder);
 	moment_amf_encoder_add_string (encoder, mic_off_str, sizeof (mic_off_str) - 1);
 	moment_amf_encoder_add_number (encoder, 0.0);
 	moment_amf_encoder_add_null_object (encoder);
