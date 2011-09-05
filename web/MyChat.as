@@ -21,6 +21,8 @@ import flash.utils.clearInterval;
 
 public class MyChat extends Sprite
 {
+    private var first_reconnect_interval : Number;
+
     private var my_video_normal_width  : Number;
     private var my_video_normal_height : Number;
     private var my_video_fullscreen_width  : Number;
@@ -37,6 +39,8 @@ public class MyChat extends Sprite
     private var stream : NetStream;
 
     private var redialing : Boolean;
+    private var new_call : Boolean;
+    private var show_connected_status_msg : Boolean;
 
     private var reconnect_interval : uint;
     private var reconnect_timer : uint;
@@ -98,6 +102,16 @@ public class MyChat extends Sprite
 	ExternalInterface.call ("addStatusMessage", msg);
     }
 
+    public function addRedStatusMessage (msg : String) : void
+    {
+	ExternalInterface.call ("addRedStatusMessage", msg);
+    }
+
+    public function addGreenStatusMessage (msg : String) : void
+    {
+	ExternalInterface.call ("addGreenStatusMessage", msg);
+    }
+
     public function showSplash () : void
     {
 	peer_video.visible = false;
@@ -112,7 +126,7 @@ public class MyChat extends Sprite
 
     public function peerMicOn () : void
     {
-	addStatusMessage ("peerMicOn");
+//	addStatusMessage ("peerMicOn");
 	peer_mic_on = true;
 	repositionButtons ();
 	peer_mic_off_mark.setVisible (false);
@@ -120,7 +134,7 @@ public class MyChat extends Sprite
 
     public function peerMicOff () : void
     {
-	addStatusMessage ("peerMicOff");
+//	addStatusMessage ("peerMicOff");
 	peer_mic_on = false;
 	repositionButtons ();
 	peer_mic_off_mark.setVisible (true);
@@ -128,55 +142,50 @@ public class MyChat extends Sprite
 
     public function peerCamOn () : void
     {
-	addStatusMessage ("peerCamOn");
+//	addStatusMessage ("peerCamOn");
 	peer_cam_on = true;
 	repositionButtons ();
 	peer_cam_off_mark.setVisible (false);
-        peer_video.addEventListener (Event.ENTER_FRAME, onEnterFrame);
+	showPeerVideo ();
     }
 
     public function peerCamOff () : void
     {
-	addStatusMessage ("peerCamOff");
+//	addStatusMessage ("peerCamOff");
 	peer_cam_on = false;
 	repositionButtons ();
 	peer_cam_off_mark.setVisible (true);
 	showSplash ();
     }
 
-    private function onEnterFrame (event : Event) : void
+    private function onStreamNetStatus (event : NetStatusEvent) : void
     {
-	addStatusMessage ("onEnterFrame");
-
-	peer_video.removeEventListener (Event.ENTER_FRAME, onEnterFrame);
-	showPeerVideo ();
-	if (buttons_visible) {
-	    // Horizontal mode button may need to be shown.
-	    showButtons ();
-	}
+//	addStatusMessage ("onStreamNetStatus: " + event.info.code);
     }
 
     private function doConnect (code : String, reconnect : Boolean) : void
     {
-	addStatusMessage ("doConnect: code: \"" + code + "\", reconnect: " + reconnect);
+//	addStatusMessage ("doConnect: code: \"" + code + "\", reconnect: " + reconnect);
 
-	peer_video.removeEventListener (Event.ENTER_FRAME, onEnterFrame);
+	ExternalInterface.call ("blockChat");
 
 	stream_name = code;
 
 	if (!reconnect) {
-	    reconnect_interval = 0;
+	    reconnect_interval = first_reconnect_interval;
 	} else {
-	    if (reconnect_interval == 0)
+	    if (reconnect_interval == first_reconnect_interval)
 		reconnect_interval = 5000;
 	}
 
 	conn_closed = false;
-	end_call_button.setVisible (true);
+	if (buttons_visible) {
+	    end_call_button.setVisible (true);
+	}
 	end_call_grey_button.setVisible (false);
 
 	conn = new NetConnection ();
-	conn.client = new Client (this);
+	conn.client = new ConnClient (this);
 
 	conn.objectEncoding = ObjectEncoding.AMF0;
 	conn.addEventListener (NetStatusEvent.NET_STATUS, onConnNetStatus);
@@ -187,6 +196,10 @@ public class MyChat extends Sprite
     {
 	new_call_button.setVisible (false);
 	showSplash ();
+	if (!new_call) {
+	    addStatusMessage ("Соединение с сервером...");
+	    show_connected_status_msg = true;
+	}
 	doConnect (code, false /* reconnect */);
     }
 
@@ -197,13 +210,20 @@ public class MyChat extends Sprite
 
     private function onConnNetStatus (event : NetStatusEvent) : void
     {
-	addStatusMessage ("onConnNetStatus: " + event.info.code);
+//	addStatusMessage ("onConnNetStatus: " + event.info.code);
 
 	if (event.info.code == "NetConnection.Connect.Success") {
 	    if (reconnect_timer_active) {
 		clearInterval (reconnect_timer);
 		reconnect_timer_active = false;
 	    }
+	    reconnect_interval = first_reconnect_interval;
+
+	    if (show_connected_status_msg) {
+//		addStatusMessage ("Соединение с сервером установлено");
+		show_connected_status_msg = false;
+	    }
+	    addStatusMessage ("Ожидание собеседника...");
 
 	    if (!mic_on)
 		conn.call ("mychat_mic_off", null);
@@ -212,15 +232,34 @@ public class MyChat extends Sprite
 		conn.call ("mychat_cam_off", null);
 
 	    stream = new NetStream (conn);
+
 	    stream.bufferTime = 0; // Live stream
 	    stream.bufferTimeMax = 0.33;
+
+	    stream.addEventListener (NetStatusEvent.NET_STATUS, onStreamNetStatus);
 
 	    if (!sound_on)
 		doTurnSoundOff ();
 
-	    peer_video.attachNetStream (stream);
+	    /* Unnecessary
+	    {
+		var vx : Number = peer_video.x;
+		var vy : Number = peer_video.y;
+		var vwidth :  Number = peer_video.width;
+		var vheight : Number = peer_video.height;
+		removeChild (peer_video);
+		peer_video = new Video ();
+		peer_video.x = vx;
+		peer_video.y = vy;
+		peer_video.width = vwidth;
+		peer_video.height = vheight;
+		addChild (peer_video);
+		setChildIndex (peer_video, getChildIndex (splash.obj));
+	    }
+	    */
 
-	    peer_video.addEventListener (Event.ENTER_FRAME, onEnterFrame);
+// Unnecessary	    peer_video.clear ();
+	    peer_video.attachNetStream (stream);
 
 	    stream.play (stream_name);
 	    stream.publish (stream_name);
@@ -234,18 +273,30 @@ public class MyChat extends Sprite
 	if (event.info.code == "NetConnection.Connect.Closed" ||
 	    event.info.code == "NetConnection.Connect.Failed")
 	{
-	    peer_video.removeEventListener (Event.ENTER_FRAME, onEnterFrame);
+	    if (event.info.code == "NetConnection.Connect.Failed")
+		addRedStatusMessage ("Ошибка соединения с сервером");
 
 	    if (redialing)
 		return;
 
+	    if (!conn_closed &&
+		event.info.code == "NetConnection.Connect.Closed")
+	    {
+		addRedStatusMessage ("Соединение с сервером разоравно");
+	    }
+	    show_connected_status_msg = false;
+
+	    ExternalInterface.call ("blockChat");
+
 	    if (!conn_closed && !reconnect_timer_active) {
+		addStatusMessage ("Повторное соединение...");
+
 		if (reconnect_interval == 0) {
 		    doConnect (stream_name, true /* reconnect */);
 		    return;
 		}
 
-		addStatusMessage ("onConnNetStatus: starting reconnect timer, interval: " + reconnect_interval);
+//		addStatusMessage ("onConnNetStatus: starting reconnect timer, interval: " + reconnect_interval);
 		reconnect_timer = setInterval (reconnectTick, reconnect_interval);
 		reconnect_timer_active = true;
 	    }
@@ -254,14 +305,18 @@ public class MyChat extends Sprite
 
     private function newCall (event : MouseEvent) : void
     {
-	addStatusMessage ("newCall");
+	new_call = true;
+
+//	addStatusMessage ("newCall");
 	ExternalInterface.call ("newCall");
 
 	if (stage.displayState == "fullScreen")
 	    stage.displayState = "normal";
+
+	addStatusMessage ("Новый вызов...");
     }
 
-    private function redial (event : MouseEvent) : void
+    private function doRedial () : void
     {
 	if (reconnect_timer_active) {
 	    clearInterval (reconnect_timer);
@@ -273,9 +328,6 @@ public class MyChat extends Sprite
 
 	new_call_button.setVisible (false);
 
-	if (conn_closed)
-	    showSplash ();
-
 	redialing = true;
 	conn.close ();
 	redialing = false;
@@ -283,8 +335,18 @@ public class MyChat extends Sprite
 	doConnect (stream_name, false /* reconnect */);
     }
 
-    private function endCall (event : MouseEvent) : void
+    private function redial (event : MouseEvent) : void
     {
+	showSplash ();
+	peer_video.clear ();
+	addStatusMessage ("Повторный вызов...");
+	doRedial ();
+    }
+
+    private function doEndCall () : void
+    {
+	ExternalInterface.call ("blockChat");
+
 	if (reconnect_timer_active) {
 	    clearInterval (reconnect_timer);
 	    reconnect_timer_active = false;
@@ -296,7 +358,9 @@ public class MyChat extends Sprite
 	peer_mic_off_mark.setVisible (false);
 	peer_cam_off_mark.setVisible (false);
 
-	end_call_grey_button.setVisible (true);
+	if (buttons_visible) {
+	    end_call_grey_button.setVisible (true);
+	}
 	end_call_button.setVisible (false);
 
 	peer_video.visible = false;
@@ -304,6 +368,35 @@ public class MyChat extends Sprite
 
 	// TODO Show "Call ended. Make another call" button.
 	new_call_button.setVisible (true);
+
+	peer_video.clear ();
+    }
+
+    private function endCall (event : MouseEvent) : void
+    {
+	conn.call ("mychat_end_call", null);
+	doEndCall ();
+	addRedStatusMessage ("Вызов завершён");
+    }
+
+    public function peerConnected () : void
+    {
+	ExternalInterface.call ("unblockChat");
+	showPeerVideo ();
+	addGreenStatusMessage ("Собеседник подключен");
+    }
+
+    public function peerDisconnected () : void
+    {
+	addRedStatusMessage ("Собеседник отключился");
+	addStatusMessage ("Ожидание собеседника...");
+	doRedial ();
+    }
+
+    public function peerEndCall () : void
+    {
+	doEndCall ();
+	addRedStatusMessage ("Собеседник завершил разговор");
     }
 
     private function rollMyVideo (event : MouseEvent) : void
@@ -660,8 +753,11 @@ public class MyChat extends Sprite
 	conn_closed = false;
 
 	redialing = false;
+	new_call = false;
+	show_connected_status_msg = true;
 
-	reconnect_interval = 0;
+	first_reconnect_interval = 1000;
+	reconnect_interval = first_reconnect_interval;
 	reconnect_timer_active = false;
 
 	my_video_normal_width  = 160;
@@ -809,7 +905,7 @@ internal class LoadedElement
     }
 }
 
-internal class Client
+internal class ConnClient
 {
     private var mychat : MyChat;
 
@@ -838,7 +934,22 @@ internal class Client
 	mychat.peerCamOff ();
     }
 
-    public function Client (mychat : MyChat)
+    public function mychat_peer_connected () : void
+    {
+	mychat.peerConnected ();
+    }
+
+    public function mychat_peer_disconnected () : void
+    {
+	mychat.peerDisconnected ();
+    }
+
+    public function mychat_end_call () : void
+    {
+	mychat.peerEndCall ();
+    }
+
+    public function ConnClient (mychat : MyChat)
     {
 	this.mychat = mychat;
     }
