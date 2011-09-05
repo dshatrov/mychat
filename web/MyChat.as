@@ -63,6 +63,8 @@ public class MyChat extends Sprite
 
     private var peer_mic_off_mark : LoadedElement;
     private var peer_cam_off_mark : LoadedElement;
+    private var my_mic_off_mark   : LoadedElement;
+    private var my_cam_off_mark   : LoadedElement;
 
     private var roll_button          : LoadedElement;
     private var unroll_button        : LoadedElement;
@@ -402,12 +404,21 @@ public class MyChat extends Sprite
     private function rollMyVideo (event : MouseEvent) : void
     {
 	my_video.visible = false;
+	my_mic_off_mark.setVisible (false);
+	my_cam_off_mark.setVisible (false);
 	showButtons ();
     }
 
     private function unrollMyVideo (event : MouseEvent) : void
     {
 	my_video.visible = true;
+
+	if (!mic_on)
+	    my_mic_off_mark.setVisible (true);
+
+	if (!cam_on)
+	    my_cam_off_mark.setVisible (true);
+
 	showButtons ();
     }
 
@@ -415,6 +426,8 @@ public class MyChat extends Sprite
     {
 	stream.attachAudio (mic);
 	mic_on = true;
+	repositionButtons ();
+	my_mic_off_mark.setVisible (false);
 	showButtons ();
 	conn.call ("mychat_mic_on", null);
     }
@@ -423,6 +436,11 @@ public class MyChat extends Sprite
     {
 	stream.attachAudio (null);
 	mic_on = false;
+	repositionButtons ();
+
+	if (my_video.visible)
+	    my_mic_off_mark.setVisible (true);
+
 	showButtons ();
 	conn.call ("mychat_mic_off", null);
     }
@@ -431,6 +449,8 @@ public class MyChat extends Sprite
     {
 	stream.attachCamera (cam);
 	cam_on = true;
+	repositionButtons ();
+	my_cam_off_mark.setVisible (false);
 	showButtons ();
 	conn.call ("mychat_cam_on", null);
     }
@@ -439,6 +459,11 @@ public class MyChat extends Sprite
     {
 	stream.attachCamera (null);
 	cam_on = false;
+	repositionButtons ();
+
+	if (my_video.visible)
+	    my_cam_off_mark.setVisible (true);
+
 	showButtons ();
 	conn.call ("mychat_cam_off", null);
     }
@@ -508,6 +533,13 @@ public class MyChat extends Sprite
 
 	peer_cam_off_mark.obj.x = peer_mic_on ? 25 : 90;
 	peer_cam_off_mark.obj.y = 25;
+
+	my_mic_off_mark.obj.x = 20;
+	my_mic_off_mark.obj.y = (stage_height - my_video.height - 10) + 10;
+
+	my_cam_off_mark.obj.x = 20 + (!mic_on ? my_mic_off_mark.obj.width + 10 : 0);
+	my_cam_off_mark.obj.y = (stage_height - my_video.height - 10) + 10;
+
 
 	roll_button.obj.x = my_video.x;
 	roll_button.obj.y = my_video.y + my_video.height - roll_button.obj.height;
@@ -797,6 +829,9 @@ public class MyChat extends Sprite
 
 	peer_mic_off_mark = createLoadedElement ("img/peer_mic_off.png", false /* visible */);
 	peer_cam_off_mark = createLoadedElement ("img/peer_cam_off.png", false /* visible */);
+
+	my_mic_off_mark = createLoadedElement ("img/my_mic_off.png", false);
+	my_cam_off_mark = createLoadedElement ("img/my_cam_off.png", false);
 
 	new_call_button = createLoadedElement ("img/new_call.png", false /* visible */);
 	new_call_button.obj.addEventListener (MouseEvent.CLICK, newCall);
