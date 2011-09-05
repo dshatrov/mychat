@@ -391,7 +391,7 @@ public class MyChat extends Sprite
     public function peerDisconnected () : void
     {
 	addRedStatusMessage ("Собеседник отключился");
-	addStatusMessage ("Ожидание собеседника...");
+//	addStatusMessage ("Ожидание собеседника...");
 	doRedial ();
     }
 
