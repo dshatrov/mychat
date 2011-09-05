@@ -136,8 +136,6 @@
       height: 30px;
       /* Breaks placeholder color in Firefox.
          color: #333333; */
-      border: 5px solid #707088;
-      border-right: 0;
       outline: 0;
       padding-left: 2px;
       padding-right: 2px;
@@ -148,63 +146,91 @@
       font-family: sans-serif;
     }
 
+    .chat_input_blocked {
+      border: 5px solid #ccccdd;
+      border-right: 0;
+    }
+
+    .chat_input_unblocked {
+      border: 5px solid #707088;
+      border-right: 0;
+    }
+
     .send_button {
-      color: white;
-      background-color: #707088;
       border: 0;
       margin: 0;
       padding-left: 10px;
       padding-right: 10px;
       font-size: 14px;
       font-weight: bold;
-      text-shadow: 1px 1px 0 #000044;
       vertical-align: middle;
     }
 
-    .send_button:hover {
+    .send_button_blocked {
+      color: #f8f8ff;
+      background-color: #ccccdd;
+      text-shadow: 1px 1px 0 #a0a0d0;
+    }
+
+    .send_button_unblocked {
+      color: white;
+      background-color: #707088;
+      text-shadow: 1px 1px 0 #000044;
+    }
+
+    .send_button_unblocked:hover {
       cursor: pointer;
     }
 
     .chat_phrase {
-	padding-left: 8px;
-	padding-top: 0.5ex;
+      padding-left: 8px;
+      padding-top: 0.5ex;
     }
 
     .lead_chat_phrase {
-	border-top: 1px dotted #a0a0d0;
-	padding-left: 8px;
-	padding-top: 0.75ex;
-	margin-top: 0.75ex;
+      border-top: 1px dotted #a0a0d0;
+      padding-left: 8px;
+      padding-top: 0.75ex;
+      margin-top: 0.75ex;
     }
 
     .own_chat_phrase {
-	color: #707088;
-	padding-left: 8px;
-	padding-top: 0.5ex;
+      color: #707088;
+      padding-left: 8px;
+      padding-top: 0.5ex;
     }
 
     .lead_own_chat_phrase {
-	color: #707088;
-	border-top: 1px dotted #a0a0d0;
-	padding-left: 8px;
-	padding-top: 0.75ex;
-	margin-top: 0.75ex;
+      color: #707088;
+      border-top: 1px dotted #a0a0d0;
+      padding-left: 8px;
+      padding-top: 0.75ex;
+      margin-top: 0.75ex;
     }
 
     .status_msg {
-	color: #a0a0a0;
-	padding-left: 8px;
-	padding-top: 0.5ex;
-	font-style: oblique;
+      color: #a0a0a0;
+      padding-left: 8px;
+      padding-top: 0.5ex;
+      font-style: oblique;
     }
 
     .lead_status_msg {
-	color: #a0a0a0;
-	border-top: 1px dotted #a0a0d0;
-	padding-left: 8px;
-	padding-top: 0.75ex;
-	margin-top: 0.75ex;
-	font-style: oblique;
+      color: #a0a0a0;
+      border-top: 1px dotted #a0a0d0;
+      padding-left: 8px;
+      padding-top: 0.75ex;
+      margin-top: 0.75ex;
+      font-style: oblique;
+    }
+
+    .status_msg_red {
+      color: #950100;
+    }
+
+    .status_msg_green {
+      color: #185804;
+      color: #185804;
     }
   </style>
   <script type="text/javascript">
@@ -335,9 +361,9 @@
 	<table style="width: 100%; height: 100%; border: 0" cellpadding="0" cellspacing="0">
 	  <tr>
 	    <td style="text-align: left; color: #333333">
-	      <input id="ChatInput" class="chat_input" type="text" placeholder="Enter chat message here" onkeydown="chatKeyDown(event)"/>
+	      <input id="ChatInput" class="chat_input chat_input_blocked" type="text" placeholder="Enter chat message here" onkeydown="chatKeyDown(event)"/>
 	    </td>
-	    <td tabindex="0" class="send_button" style="width: 100%; vertical-align: middle" onclick="sendButtonClick()" onkeydown="sendKeyDown(event)">
+	    <td id="SendButton" tabindex="0" class="send_button send_button_blocked" style="width: 100%; vertical-align: middle" onclick="sendButtonClick()" onkeydown="sendKeyDown(event)">
 	      Send
 	    </td>
 	  </tr>
@@ -356,7 +382,9 @@
     prv_phrase_is_own = false;
     prv_msg_is_status = false;
 
-    function doAddChatMessage (msg, is_own, is_status)
+    chat_blocked = true;
+
+    function doAddChatMessage (msg, is_own, is_status, color)
     {
         var scroll_to_bottom = (chat_scroll.scrollTop + chat_scroll.clientHeight >= chat_scroll.scrollHeight);
 
@@ -397,6 +425,13 @@
 	}
 	got_prv_msg = true;
 
+	if (color == "red") {
+	    msg_div.className += " status_msg_red";
+	} else
+	if (color == "green") {
+	    msg_div.className += " status_msg_green";
+	}
+
 	var p_tag = document.createElement ('span');
 	var msg_text = document.createTextNode (msg);
 	p_tag.appendChild (msg_text);
@@ -414,16 +449,43 @@
 
     function addStatusMessage (msg)
     {
-	doAddChatMessage (msg, false /* is_own */, true /* is_status */);
+	doAddChatMessage (msg, false /* is_own */, true /* is_status */, "" /* color */);
+    }
+
+    function addRedStatusMessage (msg)
+    {
+	doAddChatMessage (msg, false /* is_own */, true /* is_status */, "red" /* color */);
+    }
+
+    function addGreenStatusMessage (msg)
+    {
+	doAddChatMessage (msg, false /* is_own */, true /* is_status */, "green" /* color */);
     }
 
     function sendChatMessage ()
     {
+	if (chat_blocked)
+	    return;
+
 	msg = chat_input.value;
 	chat_input.value = "";
 
 	doAddChatMessage (msg, true /* is_own */, false /* is_status */);
 	flash.sendChatMessage (msg);
+    }
+
+    function blockChat ()
+    {
+	chat_blocked = true;
+	document.getElementById ("ChatInput").className = "chat_input chat_input_blocked";
+	document.getElementById ("SendButton").className = "send_button send_button_blocked";
+    }
+
+    function unblockChat ()
+    {
+	chat_blocked = false;
+	document.getElementById ("ChatInput").className = "chat_input chat_input_unblocked";
+	document.getElementById ("SendButton").className = "send_button send_button_unblocked";
     }
 
     function sendButtonClick ()
