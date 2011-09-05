@@ -176,8 +176,11 @@ public class MyChat extends Sprite
 	if (!reconnect) {
 	    reconnect_interval = first_reconnect_interval;
 	} else {
-	    if (reconnect_interval == first_reconnect_interval)
+	    if (reconnect_interval == first_reconnect_interval) {
 		reconnect_interval = 5000;
+		clearInterval (reconnect_timer);
+		reconnect_timer = setInterval (reconnectTick, reconnect_interval);
+	    }
 	}
 
 	conn_closed = false;
@@ -275,8 +278,11 @@ public class MyChat extends Sprite
 	if (event.info.code == "NetConnection.Connect.Closed" ||
 	    event.info.code == "NetConnection.Connect.Failed")
 	{
-	    if (event.info.code == "NetConnection.Connect.Failed")
+	    if (!reconnect_timer_active &&
+		event.info.code == "NetConnection.Connect.Failed")
+	    {
 		addRedStatusMessage ("Ошибка соединения с сервером");
+	    }
 
 	    if (redialing)
 		return;
