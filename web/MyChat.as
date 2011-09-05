@@ -438,7 +438,7 @@ public class MyChat extends Sprite
 	mic_on = false;
 	repositionButtons ();
 
-	if (my_video.visible)
+	if (cam && my_video.visible)
 	    my_mic_off_mark.setVisible (true);
 
 	showButtons ();
@@ -461,7 +461,7 @@ public class MyChat extends Sprite
 	cam_on = false;
 	repositionButtons ();
 
-	if (my_video.visible)
+	if (cam && my_video.visible)
 	    my_cam_off_mark.setVisible (true);
 
 	showButtons ();
