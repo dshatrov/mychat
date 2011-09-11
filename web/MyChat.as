@@ -169,6 +169,8 @@ public class MyChat extends Sprite
     {
 //	addStatusMessage ("doConnect: code: \"" + code + "\", reconnect: " + reconnect);
 
+	// TODO Close the previous connection explicitly.
+
 	ExternalInterface.call ("blockChat");
 
 	stream_name = code;
@@ -275,6 +277,7 @@ public class MyChat extends Sprite
 	    if (mic && mic_on)
 		stream.attachAudio (mic);
 	} else
+	// TODO Rejected, AppShutDown error codes.
 	if (event.info.code == "NetConnection.Connect.Closed" ||
 	    event.info.code == "NetConnection.Connect.Failed")
 	{
@@ -886,6 +889,7 @@ public class MyChat extends Sprite
 	    if (cam) {
 		my_video.attachCamera (cam);
 		cam.setMode (320, 240, 15);
+//		cam.setMode (640, 480, 15);
 		cam.setQuality (100000, 0);
 	    }
 	}
