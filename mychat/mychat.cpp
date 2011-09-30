@@ -354,14 +354,14 @@ void MyChat::rtmpCommandMessage (MomentMessage * const msg,
 	    self->destroyClientSession (session);
 	    self->mutex.unlock ();
 
-	    moment_client_session_disconnect (srv_session);
-	    moment_client_session_unref (srv_session);
-
 	    if (peer_srv_session) {
 		moment_client_send_rtmp_command_message_passthrough (peer_srv_session, msg);
 		moment_client_session_disconnect (peer_srv_session);
 		moment_client_session_unref (peer_srv_session);
 	    }
+
+	    moment_client_session_disconnect (srv_session);
+	    moment_client_session_unref (srv_session);
 
 	    goto _return;
 	}
