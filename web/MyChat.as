@@ -204,7 +204,7 @@ public class MyChat extends Sprite
 	new_call_button.setVisible (false);
 	showSplash ();
 	if (!new_call) {
-	    addStatusMessage ("Соединение с сервером...");
+	    addStatusMessage ("Соединение с сервером " + uri + " ...");
 	    show_connected_status_msg = true;
 	}
 	doConnect (code, false /* reconnect */);
@@ -293,7 +293,7 @@ public class MyChat extends Sprite
 	    if (!conn_closed &&
 		event.info.code == "NetConnection.Connect.Closed")
 	    {
-		addRedStatusMessage ("Соединение с сервером разоравно");
+		addRedStatusMessage ("Соединение с сервером разорвано");
 	    }
 	    show_connected_status_msg = false;
 
@@ -881,16 +881,26 @@ public class MyChat extends Sprite
 	ExternalInterface.addCallback ("sendChatMessage", sendChatMessage);
 	ExternalInterface.addCallback ("connect", connect);
 
-	uri = "rtmp://172.16.0.17:1935/mychat";
+//	uri = "rtmp://172.16.0.17:1935/mychat";
+//	uri = "rtmp://10.0.1.3:1935/mychat";
+//	uri = "rtmp://192.168.0.32:1935/mychat";
+//	uri = "rtmp://192.168.0.146:1935/mychat";
+//	uri = "rtmp://127.0.0.1:1935/mychat";
+	uri = loaderInfo.parameters ["server_uri"];
 	stream_name = "video";
 
 	if (Camera.isSupported) {
 	    cam = Camera.getCamera();
 	    if (cam) {
 		my_video.attachCamera (cam);
-		cam.setMode (320, 240, 15);
-//		cam.setMode (640, 480, 15);
+
+//		cam.setMode (320, 240, 15);
+		cam.setMode (640, 480, 15);
+//		cam.setMode (800, 600, 15);
+
+//		cam.setQuality (65536, 0);
 		cam.setQuality (100000, 0);
+//		cam.setQuality (10000000, 100);
 	    }
 	}
 
