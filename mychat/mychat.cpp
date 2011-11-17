@@ -251,6 +251,7 @@ void MyChat::clientDisconnected (void * const _session,
 
     MomentClientSession *peer_srv_session = NULL;
 
+    logD_ (_func, "session->peer_session: 0x", fmt_hex, (UintPtr) session->peer_session);
     if (session->peer_session) {
 	ClientSession * const peer_session = session->peer_session;
 
@@ -260,7 +261,9 @@ void MyChat::clientDisconnected (void * const _session,
     self->destroyClientSession (session);
     self->mutex.unlock ();
 
+    logD_ (_func, "peer_srv_session: 0x", fmt_hex, (UintPtr) peer_srv_session);
     if (peer_srv_session) {
+	logD_ (_func, "sending mychat_peer_disconnected message");
 	moment_client_send_rtmp_command_message (peer_srv_session,
 						 glob_peer_disconnected_buf,
 						 glob_peer_disconnected_len);

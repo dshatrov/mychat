@@ -2,6 +2,9 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html style="height: 100%" xmlns="http://www.w3.org/1999/xhtml">
 <head>
+  <script type="text/javascript">
+    var server_uri = "rtmp://{{ThisRtmpServerAddr}}/mychat";
+  </script>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
   <title>Moment Video Server - http://momentvideo.org</title>
 <!--  <link rel="icon" type="image/vnd.microsoft.icon" href="favicon.ico"/> -->
@@ -247,6 +250,31 @@
       color: #008000;
     }
   </style>
+  <script type="text/javascript" src="swfobject.js"></script>
+  <script type="text/javascript">
+    var flashvars = {
+      "server_uri" : server_uri
+    };
+
+    var params = {
+      "movie"   : "MyChat.swf",
+      "bgcolor" : "#000000",
+      "scale"   : "noscale",
+      "quality" : "high",
+      "allowfullscreen"   : "true",
+      "allowscriptaccess" : "always"
+    };
+
+    var attributes = {
+      "id"    : "MyChat",
+      "width" : "100%",
+      "height": "100%",
+      "align" : "Default"
+    };
+
+    swfobject.embedSWF ("MyChat.swf", "MyChat_div", "100%", "100%",
+			"9.0.0", false, flashvars, params, attributes);
+  </script>
   <script type="text/javascript">
     var flash_initialized = false;
     var should_connect = false;
@@ -259,6 +287,8 @@
 
     function flashInitialized ()
     {
+        flash = document.getElementById ("MyChat");
+
 	flash_initialized = true;
 	if (should_connect)
 	    doConnect ();
@@ -332,8 +362,16 @@
     </table>
   </div>
   <div id="Header" class="header">
+
     <div class="flash_div">
+      <div id="MyChat_div">
+	<a href="http://adobe.com/go/getflashplayer">Get Adobe Flash player</a>
+      </div>
+    </div>
+
       <!-- wmode="direct" doesn't work -->
+<!-- STATIC EMBEDDING
+    <div class="flash_div">
       <object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"
 	  width="100%"
 	  height="100%"
@@ -359,6 +397,8 @@
 	    pluginspage="http://www.adobe.com/shockwave/download/index.cgi?P1_Prod_Version=ShockwaveFlash"/>
       </object>
     </div>
+-->
+
   </div>
   <div id="ChatApp" class="chat_app">
     <div style="height: 490px; padding-bottom: 120px; width: 100%"/>
@@ -389,7 +429,7 @@
   </div>
 
   <script type="text/javascript">
-    flash       = document ["MyChat"];
+/*    flash       = document ["MyChat"]; */
     chat_input  = document.getElementById ("ChatInput");
     chat_scroll = document.getElementById ("ChatScroll");
     chat_div    = document.getElementById ("ChatDiv");
@@ -525,3 +565,4 @@
   </script>
 </body>
 </html>
+
