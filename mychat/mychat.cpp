@@ -68,10 +68,11 @@ private:
 					void       *_session,
 					void       *_self);
 
-    static MomentStream* startStreaming (char const *stream_name_buf,
-					 size_t      stream_name_len,
-					 void       *_session,
-					 void       *_self);
+    static MomentStream* startStreaming (char const          *stream_name_buf,
+					 size_t               stream_name_len,
+					 MomentRecordingMode  rec_mode,
+					 void                *_session,
+					 void                *_self);
 
     static void rtmpCommandMessage (MomentMessage *msg,
 				    void          *_session,
@@ -285,10 +286,11 @@ MomentStream* MyChat::startWatching (char const *stream_name_buf,
     return session->srv_out_stream;
 }
 
-MomentStream* MyChat::startStreaming (char const *stream_name_buf,
-				      size_t      stream_name_len,
-				      void       *_session,
-				      void       * /* _self */)
+MomentStream* MyChat::startStreaming (char const          *stream_name_buf,
+				      size_t               stream_name_len,
+				      MomentRecordingMode   /* rec_mode */,
+				      void                *_session,
+				      void                * /* _self */)
 {
     logD_ (_func, ConstMemory (stream_name_buf, stream_name_len));
     ClientSession * const session = static_cast <ClientSession*> (_session);
