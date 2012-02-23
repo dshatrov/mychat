@@ -401,7 +401,7 @@
 
   </div>
   <div id="ChatApp" class="chat_app">
-    <div style="height: 490px; padding-bottom: 120px; width: 100%"/>
+    <div style="height: 490px; padding-bottom: 120px; width: 100%"></div>
     <div class="body">
       <div class="chat_frame">
 	<div id="ChatScroll" class="chat_scroll">
