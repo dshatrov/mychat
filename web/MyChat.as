@@ -241,7 +241,8 @@ public class MyChat extends Sprite
 	    stream = new NetStream (conn);
 
 	    stream.bufferTime = 0; // Live stream
-	    stream.bufferTimeMax = 0.33;
+	    // This does not work with older versions of Flash player
+	    // stream.bufferTimeMax = 0.33;
 
 	    stream.addEventListener (NetStatusEvent.NET_STATUS, onStreamNetStatus);
 
