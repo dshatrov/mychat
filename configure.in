@@ -11,6 +11,16 @@ AC_PROG_CXX
 AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
 
+case "$host" in
+  *-*-mingw*|*-*-cygwin*)
+    platform_win32=yes
+    ;;
+  *)
+    platform_win32=no
+    ;;
+esac
+AM_CONDITIONAL(PLATFORM_WIN32, test x$platform_win32 = xyes)
+
 AC_CONFIG_FILES([Makefile
 		 web/Makefile
 		 mychat/Makefile])

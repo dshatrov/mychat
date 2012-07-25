@@ -2,7 +2,11 @@ COMMON_CFLAGS =				\
 	-Wno-long-long -Wall -Wextra	\
 	$(THIS_CFLAGS)
 
-COMMON_CFLAGS += -rdynamic
+if !PLATFORM_WIN32
+    COMMON_CFLAGS += -pthread
+    # For backtraces
+    COMMON_CFLAGS += -rdynamic
+endif
 
 AM_CFLAGS = -std=gnu99 $(COMMON_CFLAGS)
 AM_CXXFLAGS = -std=gnu++0x $(COMMON_CFLAGS)
