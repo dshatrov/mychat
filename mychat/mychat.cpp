@@ -32,7 +32,7 @@ using namespace M;
 
 namespace MyChat {
 
-class MyChat
+class MyChat : public Object
 {
 private:
     class ClientSession : public Referenced
@@ -54,9 +54,19 @@ private:
 
 	bool mic_on;
 	bool cam_on;
+
+        bool auth_passed;
+        Timers::TimerKey auth_timer;
     };
 
     typedef StringHash< Ref<ClientSession> > ClientSessionHash;
+
+    mt_const Moment::MomentServer *moment;
+    mt_const Timers *timers;
+
+    mt_const bool auth_required;
+    mt_const Ref<String> auth_secret_key;
+    mt_const Time auth_timeout;
 
     mt_mutex (mutex) ClientSessionHash session_hash;
     mt_mutex (mutex) MyCpp::List< Ref<ClientSession> > linked_sessions;
@@ -80,6 +90,10 @@ private:
 
     mt_mutex (mutex) void destroyClientSession (ClientSession *session);
 
+    mt_unlocks (mutex) void destroyClientSession_forceDisconnect (ClientSession *session);
+
+    static void authTimerTick (void *_session);
+
     static void clientConnected (MomentClientSession  *srv_session,
 				 char const           *app_name_buf,
 				 size_t                app_name_len,
@@ -95,6 +109,11 @@ public:
     void init (char const *prefix_buf,
 	       size_t      prefix_len);
 
+    MyChat ()
+        : auth_timeout (60)
+    {
+    }
+
   // TODO ~MyChat() destructor
 };
 
@@ -103,15 +122,19 @@ static MyChat glob_mychat;
 static unsigned char glob_peer_disconnected_buf [512];
 static size_t glob_peer_disconnected_len;
 
+static unsigned char glob_end_call_buf [512];
+static size_t glob_end_call_len;
+
 static unsigned char glob_mic_off_buf [512];
 static size_t glob_mic_off_len;
 
 static unsigned char glob_cam_off_buf [512];
 static size_t glob_cam_off_len;
 
-static char const peer_connected_str [] = "mychat_peer_connected";
+static char const peer_connected_str    [] = "mychat_peer_connected";
 static char const peer_disconnected_str [] = "mychat_peer_disconnected";
 static char const end_call_str [] = "mychat_end_call";
+static char const auth_str     [] = "mychat_auth";
 
 static char const mic_on_str  [] = "mychat_mic_on";
 static char const mic_off_str [] = "mychat_mic_off";
@@ -128,6 +151,11 @@ mt_mutex (mutex) void MyChat::destroyClientSession (ClientSession * const sessio
     session->valid = false;
 
     MyChat * const self = session->mychat;
+
+    if (session->auth_timer) {
+        self->timers->deleteTimer (session->auth_timer);
+        session->auth_timer = NULL;
+    }
 
     if (session->peer_session) {
 	ClientSession * const peer_session = session->peer_session;
@@ -146,6 +174,55 @@ mt_mutex (mutex) void MyChat::destroyClientSession (ClientSession * const sessio
     else
 	self->linked_sessions.remove (session->list_el);
 
+}
+
+mt_unlocks (mutex) void MyChat::destroyClientSession_forceDisconnect (ClientSession * const session)
+{
+    if (!session->valid) {
+        mutex.unlock ();
+        return;
+    }
+
+    MomentClientSession *peer_srv_session = NULL;
+    if (session->peer_session) {
+        peer_srv_session = session->peer_session->srv_session;
+        moment_client_session_ref (peer_srv_session);
+    }
+
+    MomentClientSession * const srv_session = session->srv_session;
+    moment_client_session_ref (srv_session);
+
+    destroyClientSession (session);
+    mutex.unlock ();
+
+    if (peer_srv_session) {
+	moment_client_send_rtmp_command_message (peer_srv_session,
+						 glob_end_call_buf,
+						 glob_end_call_len);
+
+        moment_client_session_disconnect (peer_srv_session);
+        moment_client_session_unref (peer_srv_session);
+    }
+
+    moment_client_session_disconnect (srv_session);
+    moment_client_session_unref (srv_session);
+}
+
+void MyChat::authTimerTick (void * const _session)
+{
+    ClientSession * const session = static_cast <ClientSession*> (_session);
+    MyChat * const self = session->mychat;
+
+    logD_ (_func, "auth timeout");
+
+    self->mutex.lock ();
+
+    self->timers->deleteTimer (session->auth_timer);
+    session->auth_timer = NULL;
+
+    self->destroyClientSession_forceDisconnect (session);
+
+    self->mutex.unlock ();
 }
 
 void MyChat::clientConnected (MomentClientSession  * const srv_session,
@@ -169,6 +246,12 @@ void MyChat::clientConnected (MomentClientSession  * const srv_session,
 
     session->mic_on = true;
     session->cam_on = true;
+
+    session->auth_passed = false;
+    if (!self->auth_required)
+        session->auth_passed = true;
+
+    session->auth_timer = NULL;
 
     session->srv_session = srv_session;
     moment_client_session_ref (srv_session);
@@ -228,6 +311,15 @@ void MyChat::clientConnected (MomentClientSession  * const srv_session,
 	session->srv_in_stream = moment_create_stream ();
 	session->srv_out_stream = moment_create_stream ();
 	logD_ (_func, "NEW REFCOUNT: ", ((Moment::VideoStream*) session->srv_in_stream)->getRefCount());
+    }
+
+    if (self->auth_required && self->auth_timeout != 0) {
+        session->auth_timer = self->timers->addTimer (CbDesc<Timers::TimerCallback> (authTimerTick,
+                                                                                     session,
+                                                                                     self    /* coderef_container */,
+                                                                                     session /* ref_data */),
+                                                      self->auth_timeout,
+                                                      false /* periodical */);
     }
 
     self->mutex.unlock ();
@@ -319,55 +411,92 @@ void MyChat::rtmpCommandMessage (MomentMessage * const msg,
 				   &method_name_len,
 				   NULL /* ret_full_len */))
     {
+        if (method_name_len == sizeof (auth_str) - 1
+            && !memcmp (method_name, auth_str, sizeof (auth_str) -1 ))
+        {
+	    if (moment_amf_decode_number (decoder, NULL))
+		logW_ (_func, "Could not skip transaction id");
+
+	    if (moment_amf_decoder_skip_object (decoder))
+		logW_ (_func, "Could not skip command object");
+
+            if (!self->auth_required) {
+                self->mutex.unlock ();
+                goto _return;
+            }
+
+            if (self->auth_secret_key.isNull()) {
+                self->mutex.unlock ();
+                logE_ (_func, "no secret key");
+                goto _return;
+            }
+
+            char hash_from_client_buf [1024];
+            size_t hash_from_client_len;
+            if (moment_amf_decode_string (decoder,
+                                          hash_from_client_buf,
+                                          sizeof (hash_from_client_buf),
+                                          &hash_from_client_len,
+                                          NULL /* ret_full_len */))
+            {
+                logW_ (_func, auth_str, ": could not decode auth hash");
+                mt_unlocks (mutex) self->destroyClientSession_forceDisconnect (session);
+                goto _return;
+            }
+
+            // TODO Do real auth check.
+            if (!equal (ConstMemory (hash_from_client_buf, hash_from_client_len),
+                        self->auth_secret_key->mem()))
+            {
+                logW_ (_func, auth_str, ": auth check failed");
+                mt_unlocks (mutex) self->destroyClientSession_forceDisconnect (session);
+                goto _return;
+            }
+
+            logD_ (_func, auth_str, ": auth check passed");
+            session->auth_passed = true;
+            if (session->auth_timer) {
+                self->timers->deleteTimer (session->auth_timer);
+                session->auth_timer = NULL;
+            }
+
+            self->mutex.unlock ();
+            goto _return;
+        }
+
+        // TODO Auth timer.
+
+        if (self->auth_required && !session->auth_passed) {
+            self->mutex.unlock ();
+            logW_ (_func, "not auth, command ignored: ", ConstMemory (method_name, method_name_len));
+            goto _return;
+        }
+
+        logD_ (_func, ConstMemory (method_name, method_name_len));
 	if (method_name_len == sizeof (mic_on_str) - 1
 	    && !memcmp (method_name, mic_on_str, sizeof (mic_on_str) - 1))
 	{
-	    logD_ (_func, "mic on");
 	    session->mic_on = true;
 	} else
 	if (method_name_len == sizeof (mic_off_str) - 1
 	    && !memcmp (method_name, mic_off_str, sizeof (mic_off_str) - 1))
 	{
-	    logD_ (_func, "mic off");
 	    session->mic_on = false;
 	} else
 	if (method_name_len == sizeof (cam_on_str) - 1
 	    && !memcmp (method_name, cam_on_str, sizeof (cam_on_str) - 1))
 	{
-	    logD_ (_func, "cam on");
 	    session->cam_on = true;
 	} else
 	if (method_name_len == sizeof (cam_off_str) - 1
 	    && !memcmp (method_name, cam_off_str, sizeof (cam_off_str) - 1))
 	{
-	    logD_ (_func, "cam off");
 	    session->cam_on = false;
 	} else
 	if (method_name_len == sizeof (end_call_str) - 1
 	    && !memcmp (method_name, end_call_str, sizeof (end_call_str) - 1))
 	{
-	    logD_ (_func, "end call");
-	    MomentClientSession *peer_srv_session = NULL;
-	    if (session->peer_session) {
-		peer_srv_session = session->peer_session->srv_session;
-		moment_client_session_ref (peer_srv_session);
-	    }
-
-	    MomentClientSession * const srv_session = session->srv_session;
-	    moment_client_session_ref (srv_session);
-
-	    self->destroyClientSession (session);
-	    self->mutex.unlock ();
-
-	    if (peer_srv_session) {
-		moment_client_send_rtmp_command_message_passthrough (peer_srv_session, msg);
-		moment_client_session_disconnect (peer_srv_session);
-		moment_client_session_unref (peer_srv_session);
-	    }
-
-	    moment_client_session_disconnect (srv_session);
-	    moment_client_session_unref (srv_session);
-
+            mt_unlocks (mutex) self->destroyClientSession_forceDisconnect (session);
 	    goto _return;
 	}
     }
@@ -399,6 +528,47 @@ void MyChat::init (char const * const prefix_buf,
 {
     logD_ (_func_);
 
+    // TODO Use C API for config access.
+    moment = Moment::MomentServer::getInstance();
+    MConfig::Config * const config = moment->getConfig ();
+    timers = moment->getServerApp()->getMainThreadContext()->getTimers();
+
+    {
+        ConstMemory const opt_name = "mychat/auth_required";
+        MConfig::Config::BooleanValue const val = config->getBoolean (opt_name);
+        if (val == MConfig::Config::Boolean_Invalid) {
+            logE_ (_func, "Invalid value for ", opt_name, ": ", config->getString (opt_name));
+            return;
+        }
+
+        if (val != MConfig::Config::Boolean_True) {
+            auth_required = false;
+        } else {
+            logD_ (_func, "auth required");
+            auth_required = true;
+        }
+    }
+
+    {
+        ConstMemory const opt_name = "mychat/auth_secret_key";
+        bool is_set = false;
+        auth_secret_key = grab (new String (config->getString (opt_name, &is_set)));
+        if (auth_required && !is_set) {
+            logE_ (_func, "Secret authentication key not specified (", opt_name, " config option)");
+            return;
+        }
+    }
+
+    {
+        ConstMemory const opt_name = "mychat/auth_timeout";
+        MConfig::GetResult const res = config->getUint64_default (
+                opt_name, &auth_timeout, auth_timeout);
+        if (!res) {
+            logE_ (_func, "Invalid value for ", opt_name, ": ", config->getString (opt_name));
+            return;
+        }
+    }
+
     {
 	MomentAmfEncoder * const encoder = moment_amf_encoder_new_AMF0 ();
 	moment_amf_encoder_add_string (encoder, peer_disconnected_str, sizeof (peer_disconnected_str) - 1);
@@ -411,6 +581,13 @@ void MyChat::init (char const * const prefix_buf,
 	{
 	    abort ();
 	}
+
+        moment_amf_encoder_reset (encoder);
+        moment_amf_encoder_add_string (encoder, end_call_str, sizeof (end_call_str) - 1);
+        moment_amf_encoder_add_number (encoder, 0.0);
+        moment_amf_encoder_add_null_object (encoder);
+        if (moment_amf_encoder_encode (encoder, glob_end_call_buf, sizeof (glob_end_call_buf), &glob_end_call_len))
+            abort ();
 
 	moment_amf_encoder_reset (encoder);
 	moment_amf_encoder_add_string (encoder, mic_off_str, sizeof (mic_off_str) - 1);

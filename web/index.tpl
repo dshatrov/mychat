@@ -253,7 +253,8 @@
   <script type="text/javascript" src="swfobject.js"></script>
   <script type="text/javascript">
     var flashvars = {
-      "server_uri" : server_uri
+      "server_uri" : server_uri,
+      "auth"       : "foobar"
     };
 
     var params = {

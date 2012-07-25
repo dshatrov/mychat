@@ -21,6 +21,8 @@ import flash.utils.clearInterval;
 
 public class MyChat extends Sprite
 {
+    private var auth_str: String;
+
     private var first_reconnect_interval : Number;
 
     private var my_video_normal_width  : Number;
@@ -225,6 +227,9 @@ public class MyChat extends Sprite
 		reconnect_timer_active = false;
 	    }
 	    reconnect_interval = first_reconnect_interval;
+
+            if (auth_str)
+                conn.call ("mychat_auth", null, auth_str);
 
 	    if (show_connected_status_msg) {
 //		addStatusMessage ("Соединение с сервером установлено");
@@ -890,7 +895,9 @@ public class MyChat extends Sprite
 	uri = loaderInfo.parameters ["server_uri"];
 	stream_name = "video";
 
-	if (Camera.isSupported) {
+        auth_str = loaderInfo.parameters ["auth"];
+
+	if (true /* Camera.isSupported */) {
 	    cam = Camera.getCamera();
 	    if (cam) {
 		my_video.attachCamera (cam);
@@ -905,7 +912,7 @@ public class MyChat extends Sprite
 	    }
 	}
 
-	if (Microphone.isSupported) {
+	if (true /* Microphone.isSupported */) {
 	    mic = Microphone.getMicrophone();
 	    if (mic)
 		mic.setLoopBack (false);
