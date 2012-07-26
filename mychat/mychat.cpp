@@ -463,21 +463,28 @@ void MyChat::rtmpCommandMessage (MomentMessage * const msg,
                 client_hash = ConstMemory (hash_from_client_buf + i + 1, hash_from_client_len - i - 1);
             }
 
-            Ref<String> const src_text = makeString (((Uint64) getUnixtime() + 1800) / 3600 /* auth timestamp */,
-                                                     " ",
-                                                     client_text,
-                                                     self->auth_secret_key->mem());
-            unsigned char hash_buf [32];
-            getMd5HexAscii (src_text->mem(), Memory::forObject (hash_buf));
-            logD_ (_func, "src_text: ", src_text, ", md5: ", ConstMemory::forObject (hash_buf));
-            if (!equal (ConstMemory::forObject (hash_buf), client_hash)) {
-// Old dummy variant
-//            if (!equal (ConstMemory (hash_from_client_buf, hash_from_client_len),
-//                        self->auth_secret_key->mem()))
-//            {
-                logW_ (_func, auth_str, ": auth check failed");
-                mt_unlocks (mutex) self->destroyClientSession_forceDisconnect (session);
-                goto _return;
+            {
+                unsigned i = 0;
+                for (; i < 3; ++i) {
+                    Ref<String> const src_text = makeString (((Uint64) getUnixtime() + 1800) / 3600 + i/* auth timestamp */,
+                                                             " ",
+                                                             client_text,
+                                                             self->auth_secret_key->mem());
+                    unsigned char hash_buf [32];
+                    getMd5HexAscii (src_text->mem(), Memory::forObject (hash_buf));
+                    logD_ (_func, "src_text: ", src_text, ", md5: ", ConstMemory::forObject (hash_buf));
+        // Old dummy variant
+        //            if (!equal (ConstMemory (hash_from_client_buf, hash_from_client_len),
+        //                        self->auth_secret_key->mem()))
+                    if (equal (ConstMemory::forObject (hash_buf), client_hash))
+                        break;
+                }
+
+                if (i >= 3) {
+                    logW_ (_func, auth_str, ": auth check failed");
+                    mt_unlocks (mutex) self->destroyClientSession_forceDisconnect (session);
+                    goto _return;
+                }
             }
 
             logD_ (_func, auth_str, ": auth check passed");
