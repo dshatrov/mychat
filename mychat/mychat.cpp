@@ -466,7 +466,7 @@ void MyChat::rtmpCommandMessage (MomentMessage * const msg,
             {
                 unsigned i = 0;
                 for (; i < 3; ++i) {
-                    Ref<String> const src_text = makeString (((Uint64) getUnixtime() + 1800) / 3600 + i/* auth timestamp */,
+                    Ref<String> const src_text = makeString (((Uint64) getUnixtime() + 1800) / 3600 - i /* auth timestamp */,
                                                              " ",
                                                              client_text,
                                                              self->auth_secret_key->mem());
