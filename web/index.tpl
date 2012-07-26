@@ -254,7 +254,7 @@
   <script type="text/javascript">
     var flashvars = {
       "server_uri" : server_uri,
-      "auth"       : "foobar"
+      "auth"       : "{{MomentAuthTest}}"
     };
 
     var params = {

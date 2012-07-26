@@ -463,11 +463,13 @@ void MyChat::rtmpCommandMessage (MomentMessage * const msg,
                 client_hash = ConstMemory (hash_from_client_buf + i + 1, hash_from_client_len - i - 1);
             }
 
-            Ref<String> const src_text = makeString (client_text, self->auth_secret_key->mem());
-
+            Ref<String> const src_text = makeString (((Uint64) getUnixtime() + 1800) / 3600 /* auth timestamp */,
+                                                     " ",
+                                                     client_text,
+                                                     self->auth_secret_key->mem());
             unsigned char hash_buf [32];
             getMd5HexAscii (src_text->mem(), Memory::forObject (hash_buf));
-            logD_ (_func, "client_text: ", client_text, ", md5: ", ConstMemory::forObject (hash_buf));
+            logD_ (_func, "src_text: ", src_text, ", md5: ", ConstMemory::forObject (hash_buf));
             if (!equal (ConstMemory::forObject (hash_buf), client_hash)) {
 // Old dummy variant
 //            if (!equal (ConstMemory (hash_from_client_buf, hash_from_client_len),
