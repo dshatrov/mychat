@@ -444,10 +444,35 @@ void MyChat::rtmpCommandMessage (MomentMessage * const msg,
                 goto _return;
             }
 
-            // TODO Do real auth check.
-            if (!equal (ConstMemory (hash_from_client_buf, hash_from_client_len),
-                        self->auth_secret_key->mem()))
+            ConstMemory client_text;
+            ConstMemory client_hash;
             {
+                unsigned long i;
+                for (i = 0; i < hash_from_client_len; ++i) {
+                    if (hash_from_client_buf [i] == '|')
+                        break;
+                }
+
+                if (i >= hash_from_client_len) {
+                    logW_ (_func, auth_str, ": bad auth string from client: no '|' separator");
+                    mt_unlocks (mutex) self->destroyClientSession_forceDisconnect (session);
+                    goto _return;
+                }
+
+                client_text = ConstMemory (hash_from_client_buf, i);
+                client_hash = ConstMemory (hash_from_client_buf + i + 1, hash_from_client_len - i - 1);
+            }
+
+            Ref<String> const src_text = makeString (client_text, self->auth_secret_key->mem());
+
+            unsigned char hash_buf [32];
+            getMd5HexAscii (src_text->mem(), Memory::forObject (hash_buf));
+            logD_ (_func, "client_text: ", client_text, ", md5: ", ConstMemory::forObject (hash_buf));
+            if (!equal (ConstMemory::forObject (hash_buf), client_hash)) {
+// Old dummy variant
+//            if (!equal (ConstMemory (hash_from_client_buf, hash_from_client_len),
+//                        self->auth_secret_key->mem()))
+//            {
                 logW_ (_func, auth_str, ": auth check failed");
                 mt_unlocks (mutex) self->destroyClientSession_forceDisconnect (session);
                 goto _return;
@@ -463,8 +488,6 @@ void MyChat::rtmpCommandMessage (MomentMessage * const msg,
             self->mutex.unlock ();
             goto _return;
         }
-
-        // TODO Auth timer.
 
         if (self->auth_required && !session->auth_passed) {
             self->mutex.unlock ();
