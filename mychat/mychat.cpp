@@ -567,13 +567,13 @@ void MyChat::init (char const * const prefix_buf,
 
     {
         ConstMemory const opt_name = "mychat/auth_required";
-        MConfig::Config::BooleanValue const val = config->getBoolean (opt_name);
-        if (val == MConfig::Config::Boolean_Invalid) {
+        MConfig::BooleanValue const val = config->getBoolean (opt_name);
+        if (val == MConfig::Boolean_Invalid) {
             logE_ (_func, "Invalid value for ", opt_name, ": ", config->getString (opt_name));
             return;
         }
 
-        if (val != MConfig::Config::Boolean_True) {
+        if (val != MConfig::Boolean_True) {
             auth_required = false;
         } else {
             logD_ (_func, "auth required");
