@@ -368,24 +368,48 @@ void MyChat::clientDisconnected (void * const _session,
     session->unref();
 }
 
-MomentStream* MyChat::startWatching (char const *stream_name_buf,
-				     size_t      stream_name_len,
-				     void       *_session,
-				     void       * /* _self */)
+MomentStream* MyChat::startWatching (char const * const stream_name_buf,
+				     size_t       const stream_name_len,
+				     void       * const _session,
+				     void       * const _self)
 {
     logD_ (_func, ConstMemory (stream_name_buf, stream_name_len));
+
+    MyChat * const self = static_cast <MyChat*> (_self);
     ClientSession * const session = static_cast <ClientSession*> (_session);
+
+    self->mutex.lock ();
+
+    if (self->auth_required && !session->auth_passed) {
+        mt_unlocks (mutex) self->destroyClientSession_forceDisconnect (session);
+        return NULL;
+    }
+
+    self->mutex.unlock ();
+
     return session->srv_out_stream;
 }
 
-MomentStream* MyChat::startStreaming (char const          *stream_name_buf,
-				      size_t               stream_name_len,
-				      MomentRecordingMode   /* rec_mode */,
-				      void                *_session,
-				      void                * /* _self */)
+MomentStream* MyChat::startStreaming (char const          * const stream_name_buf,
+				      size_t                const stream_name_len,
+				      MomentRecordingMode   const /* rec_mode */,
+				      void                * const _session,
+				      void                * const _self)
 {
     logD_ (_func, ConstMemory (stream_name_buf, stream_name_len));
+
+    MyChat * const self = static_cast <MyChat*> (_self);
     ClientSession * const session = static_cast <ClientSession*> (_session);
+
+    self->mutex.lock ();
+
+    if (self->auth_required && !session->auth_passed) {
+        mt_unlocks (mutex) self->destroyClientSession_forceDisconnect (session);
+        return NULL;
+    }
+
+    self->mutex.unlock ();
+
     return session->srv_in_stream;
 }
 
