@@ -362,6 +362,36 @@
       </tr>
     </table>
   </div>
+
+  <div id="ChatApp" class="chat_app">
+    <div style="height: 490px; padding-bottom: 120px; width: 100%"></div>
+    <div class="body">
+      <div class="chat_frame">
+	<div id="ChatScroll" class="chat_scroll">
+	  <div id="ChatDiv" class="chat_div">
+	  </div>
+	</div>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="input_div">
+	<table style="width: 100%; height: 100%; border: 0" cellpadding="0" cellspacing="0">
+	  <tr>
+	    <td style="width: 100%; text-align: left; color: #333333">
+	    <div id="ChatInputWrapper" style="chat_input_wrapper_blocked">
+	      <input id="ChatInput" class="chat_input chat_input_blocked" type="text" placeholder="Введите сообщение" onkeydown="chatKeyDown(event)"/>
+	      </div>
+	    </td>
+	    <td id="SendButton" tabindex="0" class="send_button send_button_blocked" style="vertical-align: middle" onclick="sendButtonClick()" onkeydown="sendKeyDown(event)">
+	      Отправить
+	    </td>
+	  </tr>
+	</table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header goes after ChatApp for proper Z order in Chrome -->
   <div id="Header" class="header">
 
     <div class="flash_div">
@@ -400,33 +430,6 @@
     </div>
 -->
 
-  </div>
-  <div id="ChatApp" class="chat_app">
-    <div style="height: 490px; padding-bottom: 120px; width: 100%"></div>
-    <div class="body">
-      <div class="chat_frame">
-	<div id="ChatScroll" class="chat_scroll">
-	  <div id="ChatDiv" class="chat_div">
-	  </div>
-	</div>
-      </div>
-    </div>
-    <div class="footer">
-      <div class="input_div">
-	<table style="width: 100%; height: 100%; border: 0" cellpadding="0" cellspacing="0">
-	  <tr>
-	    <td style="width: 100%; text-align: left; color: #333333">
-	    <div id="ChatInputWrapper" style="chat_input_wrapper_blocked">
-	      <input id="ChatInput" class="chat_input chat_input_blocked" type="text" placeholder="Введите сообщение" onkeydown="chatKeyDown(event)"/>
-	      </div>
-	    </td>
-	    <td id="SendButton" tabindex="0" class="send_button send_button_blocked" style="vertical-align: middle" onclick="sendButtonClick()" onkeydown="sendKeyDown(event)">
-	      Отправить
-	    </td>
-	  </tr>
-	</table>
-      </div>
-    </div>
   </div>
 
   <script type="text/javascript">
