@@ -35,6 +35,8 @@ namespace MyChat {
 class MyChat : public Object
 {
 private:
+    StateMutex mutex;
+
     class ClientSession : public Referenced
     {
     public:
@@ -70,8 +72,6 @@ private:
 
     mt_mutex (mutex) ClientSessionHash session_hash;
     mt_mutex (mutex) MyCpp::List< Ref<ClientSession> > linked_sessions;
-
-    Mutex mutex;
 
     static MomentStream* startWatching (char const *stream_name_buf,
 					size_t      stream_name_len,
@@ -319,7 +319,8 @@ void MyChat::clientConnected (MomentClientSession  * const srv_session,
                                                                                      self    /* coderef_container */,
                                                                                      session /* ref_data */),
                                                       self->auth_timeout,
-                                                      false /* periodical */);
+                                                      false /* periodical */,
+                                                      false /* auto_delete */);
     }
 
     self->mutex.unlock ();
