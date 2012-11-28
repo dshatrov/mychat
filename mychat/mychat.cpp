@@ -78,11 +78,12 @@ private:
 					void       *_session,
 					void       *_self);
 
-    static MomentStream* startStreaming (char const          *stream_name_buf,
-					 size_t               stream_name_len,
-					 MomentRecordingMode  rec_mode,
-					 void                *_session,
-					 void                *_self);
+    static MomentResult startStreaming (char const          *stream_name_buf,
+					size_t               stream_name_len,
+                                        MomentStream        *stream,
+					MomentRecordingMode  rec_mode,
+					void                *_session,
+					void                *_self);
 
     static void rtmpCommandMessage (MomentMessage *msg,
 				    void          *_session,
@@ -166,7 +167,9 @@ mt_mutex (mutex) void MyChat::destroyClientSession (ClientSession * const sessio
 
     moment_client_session_unref (session->srv_session);
 
-    moment_stream_unref (session->srv_in_stream);
+    if (session->srv_in_stream)
+        moment_stream_unref (session->srv_in_stream);
+
     moment_stream_unref (session->srv_out_stream);
 
     if (session->in_session_hash)
@@ -391,11 +394,12 @@ MomentStream* MyChat::startWatching (char const * const stream_name_buf,
     return session->srv_out_stream;
 }
 
-MomentStream* MyChat::startStreaming (char const          * const stream_name_buf,
-				      size_t                const stream_name_len,
-				      MomentRecordingMode   const /* rec_mode */,
-				      void                * const _session,
-				      void                * const _self)
+MomentResult MyChat::startStreaming (char const          * const stream_name_buf,
+				     size_t                const stream_name_len,
+                                     MomentStream        * const stream,
+				     MomentRecordingMode   const /* rec_mode */,
+				     void                * const _session,
+				     void                * const _self)
 {
     logD_ (_func, ConstMemory (stream_name_buf, stream_name_len));
 
@@ -406,12 +410,18 @@ MomentStream* MyChat::startStreaming (char const          * const stream_name_bu
 
     if (self->auth_required && !session->auth_passed) {
         mt_unlocks (mutex) self->destroyClientSession_forceDisconnect (session);
-        return NULL;
+        return MomentResult_Failure;
     }
+
+    moment_stream_bind_to_stream (session->srv_in_stream,
+                                  stream /* bind_audio_stream */,
+                                  stream /* bind_video_stream */,
+                                  1      /* bind_audio */,
+                                  1      /* bind_video */);
 
     self->mutex.unlock ();
 
-    return session->srv_in_stream;
+    return MomentResult_Success;
 }
 
 void MyChat::rtmpCommandMessage (MomentMessage * const msg,
