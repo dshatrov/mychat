@@ -9,6 +9,10 @@ import flash.media.Camera;
 import flash.media.Microphone;
 import flash.media.Video;
 import flash.media.SoundTransform;
+import flash.media.SoundCodec;
+import flash.media.H264VideoStreamSettings;
+import flash.media.H264Level;
+import flash.media.H264Profile;
 import flash.net.NetConnection;
 import flash.net.NetStream;
 import flash.net.ObjectEncoding;
@@ -277,8 +281,15 @@ public class MyChat extends Sprite
 	    stream.play (stream_name);
 	    stream.publish (stream_name);
 
-	    if (cam && cam_on)
+	    if (cam && cam_on) {
+                /*
+                var avc_opts : H264VideoStreamSettings = new H264VideoStreamSettings ();
+                avc_opts.setProfileLevel (H264Profile.BASELINE, H264Level.LEVEL_3_1);
+                stream.videoStreamSettings = avc_opts;
+                */
+
 		stream.attachCamera (cam);
+            }
 
 	    if (mic && mic_on)
 		stream.attachAudio (mic);
@@ -913,9 +924,19 @@ public class MyChat extends Sprite
 	}
 
 	if (true /* Microphone.isSupported */) {
-	    mic = Microphone.getMicrophone();
-	    if (mic)
+	    mic = Microphone.getEnhancedMicrophone();
+            if (mic) {
+                mic.setSilenceLevel (0, 2000);
+            } else {
+                mic = Microphone.getMicrophone();
+            }
+
+	    if (mic) {
+                mic.codec = SoundCodec.SPEEX;
+                mic.setUseEchoSuppression (true);
 		mic.setLoopBack (false);
+                mic.gain = 50;
+            }
 	}
 
 	showSplash ();
