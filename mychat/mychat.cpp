@@ -73,17 +73,23 @@ private:
     mt_mutex (mutex) ClientSessionHash session_hash;
     mt_mutex (mutex) MyCpp::List< Ref<ClientSession> > linked_sessions;
 
-    static MomentStream* startWatching (char const *stream_name_buf,
-					size_t      stream_name_len,
-					void       *_session,
-					void       *_self);
+    static int startWatching (char const    *stream_name_buf,
+                              size_t         stream_name_len,
+                              void          *_session,
+                              void          *_self,
+                              MomentStartWatchingResultCallback cb,
+                              void          *cb_data,
+                              MomentStream **ret_stream);
 
-    static MomentResult startStreaming (char const          *stream_name_buf,
-					size_t               stream_name_len,
-                                        MomentStream        *stream,
-					MomentRecordingMode  rec_mode,
-					void                *_session,
-					void                *_self);
+    static int startStreaming (char const          *stream_name_buf,
+                               size_t               stream_name_len,
+                               MomentStream        *stream,
+                               MomentRecordingMode  rec_mode,
+                               void                *_session,
+                               void                *_self,
+                               MomentStartStreamingResultCallback const /* cb */,
+                               void                * const /* cb_data */,
+                               MomentResult        * const ret_res);
 
     static void rtmpCommandMessage (MomentMessage *msg,
 				    void          *_session,
@@ -372,11 +378,16 @@ void MyChat::clientDisconnected (void * const _session,
     session->unref();
 }
 
-MomentStream* MyChat::startWatching (char const * const stream_name_buf,
-				     size_t       const stream_name_len,
-				     void       * const _session,
-				     void       * const _self)
+int MyChat::startWatching (char const    * const stream_name_buf,
+                           size_t          const stream_name_len,
+                           void          * const _session,
+                           void          * const _self,
+                           MomentStartWatchingResultCallback const /* cb */,
+                           void          * const /* cb_data */,
+                           MomentStream ** const ret_stream)
 {
+    *ret_stream = NULL;
+
     logD_ (_func, ConstMemory (stream_name_buf, stream_name_len));
 
     MyChat * const self = static_cast <MyChat*> (_self);
@@ -386,21 +397,28 @@ MomentStream* MyChat::startWatching (char const * const stream_name_buf,
 
     if (self->auth_required && !session->auth_passed) {
         mt_unlocks (mutex) self->destroyClientSession_forceDisconnect (session);
-        return NULL;
+        *ret_stream = NULL;
+        return 1;
     }
 
     self->mutex.unlock ();
 
-    return session->srv_out_stream;
+    *ret_stream = session->srv_out_stream;
+    return 1;
 }
 
-MomentResult MyChat::startStreaming (char const          * const stream_name_buf,
-				     size_t                const stream_name_len,
-                                     MomentStream        * const stream,
-				     MomentRecordingMode   const /* rec_mode */,
-				     void                * const _session,
-				     void                * const _self)
+int MyChat::startStreaming (char const          * const stream_name_buf,
+                            size_t                const stream_name_len,
+                            MomentStream        * const stream,
+                            MomentRecordingMode   const /* rec_mode */,
+                            void                * const _session,
+                            void                * const _self,
+                            MomentStartStreamingResultCallback const /* cb */,
+                            void                * const /* cb_data */,
+                            MomentResult        * const ret_res)
 {
+    *ret_res = MomentResult_Failure;
+
     logD_ (_func, ConstMemory (stream_name_buf, stream_name_len));
 
     MyChat * const self = static_cast <MyChat*> (_self);
@@ -410,7 +428,8 @@ MomentResult MyChat::startStreaming (char const          * const stream_name_buf
 
     if (self->auth_required && !session->auth_passed) {
         mt_unlocks (mutex) self->destroyClientSession_forceDisconnect (session);
-        return MomentResult_Failure;
+        *ret_res = MomentResult_Failure;
+        return 1;
     }
 
     moment_stream_bind_to_stream (session->srv_in_stream,
@@ -421,7 +440,8 @@ MomentResult MyChat::startStreaming (char const          * const stream_name_buf
 
     self->mutex.unlock ();
 
-    return MomentResult_Success;
+    *ret_res = MomentResult_Success;
+    return 1;
 }
 
 void MyChat::rtmpCommandMessage (MomentMessage * const msg,
