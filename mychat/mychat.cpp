@@ -18,7 +18,6 @@
 
 
 #include <libmary/libmary.h>
-#include <mycpp/list.h>
 
 #include <moment/module_init.h>
 #include <moment/api.h>
@@ -52,7 +51,7 @@ private:
 	bool in_session_hash;
 
 	StringHash< Ref<ClientSession> >::EntryKey hash_key;
-	MyCpp::List< Ref<ClientSession> >::Element *list_el;
+	List< Ref<ClientSession> >::Element *list_el;
 
 	bool mic_on;
 	bool cam_on;
@@ -71,7 +70,7 @@ private:
     mt_const Time auth_timeout;
 
     mt_mutex (mutex) ClientSessionHash session_hash;
-    mt_mutex (mutex) MyCpp::List< Ref<ClientSession> > linked_sessions;
+    mt_mutex (mutex) List< Ref<ClientSession> > linked_sessions;
 
     static int startWatching (char const    *stream_name_buf,
                               size_t         stream_name_len,
