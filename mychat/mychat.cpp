@@ -617,7 +617,7 @@ void MyChat::init (char const * const prefix_buf,
     // TODO Use C API for config access.
     moment = Moment::MomentServer::getInstance();
     MConfig::Config * const config = moment->getConfig ();
-    timers = moment->getServerApp()->getMainThreadContext()->getTimers();
+    timers = moment->getServerApp()->getServerContext()->getMainThreadContext()->getTimers();
 
     {
         ConstMemory const opt_name = "mychat/auth_required";
