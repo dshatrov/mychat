@@ -334,7 +334,7 @@ void MyChat::clientConnected (MomentClientSession  * const srv_session,
     self->mutex.unlock ();
 
     *ret_client_data = static_cast <void*> (session);
-    session->ref();
+    session->ref ();
 }
 
 void MyChat::clientDisconnected (void * const _session,
@@ -348,6 +348,7 @@ void MyChat::clientDisconnected (void * const _session,
     self->mutex.lock ();
     if (!session->valid) {
 	self->mutex.unlock ();
+        session->unref ();
 	return;
     }
 
@@ -374,7 +375,7 @@ void MyChat::clientDisconnected (void * const _session,
 	moment_client_session_unref (peer_srv_session);
     }
 
-    session->unref();
+    session->unref ();
 }
 
 int MyChat::startWatching (char const    * const stream_name_buf,
@@ -614,10 +615,24 @@ void MyChat::init (char const * const prefix_buf,
 {
     logD_ (_func_);
 
-    // TODO Use C API for config access.
     moment = Moment::MomentServer::getInstance();
     MConfig::Config * const config = moment->getConfig ();
     timers = moment->getServerApp()->getServerContext()->getMainThreadContext()->getTimers();
+
+    {
+	ConstMemory const opt_name = "mychat/enable";
+	MConfig::BooleanValue const enable = config->getBoolean (opt_name);
+	if (enable == MConfig::Boolean_Invalid) {
+	    logE_ (_func, "Invalid value for ", opt_name, ": ", config->getString (opt_name));
+	    return;
+	}
+
+	if (enable == MConfig::Boolean_False) {
+	    logI_ (_func, "MyChat module is not enabled. "
+		   "Set \"", opt_name, "\" option to \"y\" to enable.");
+	    return;
+	}
+    }
 
     {
         ConstMemory const opt_name = "mychat/auth_required";

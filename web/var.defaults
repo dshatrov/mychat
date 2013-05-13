@@ -1,0 +1,14 @@
+MyChat_EnableDebug   = false
+
+MyChat_EnableH264    = false
+MyChat_EnableAEC     = true
+
+MyChat_CamSetMode    = true
+MyChat_CamWidth      = 320
+MyChat_CamHeight     = 240
+MyChat_CamFramerate  = 30
+
+MyChat_CamSetQuality = true
+MyChat_CamBandwidth  = 256000
+MyChat_CamQuality    = 0
+

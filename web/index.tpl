@@ -253,8 +253,22 @@
   <script type="text/javascript" src="swfobject.js"></script>
   <script type="text/javascript">
     var flashvars = {
-      "server_uri" : server_uri,
-      "auth"       : "{{MomentAuthTest}}"
+      "enable_debug"    : "{{MyChat_EnableDebug}}",
+
+      "server_uri"      : server_uri,
+      "auth"            : "{{MomentAuthTest}}",
+
+      "enable_h264"     : "{{MyChat_EnableH264}}",
+      "enable_aec"      : "{{MyChat_EnableAEC}}",
+
+      "cam_set_mode"    : "{{MyChat_CamSetMode}}",
+      "cam_width"       : "{{MyChat_CamWidth}}",
+      "cam_height"      : "{{MyChat_CamHeight}}",
+      "cam_framerate"   : "{{MyChat_CamFramerate}}",
+
+      "cam_set_quality" : "{{MyChat_CamSetQuality}}",
+      "cam_bandwidth"   : "{{MyChat_CamBandwidth}}",
+      "cam_quality"     : "{{MyChat_CamQuality}}",
     };
 
     var params = {
@@ -277,6 +291,8 @@
 			"9.0.0", false, flashvars, params, attributes);
   </script>
   <script type="text/javascript">
+    var strings = new Object;
+
     var flash_initialized = false;
     var should_connect = false;
 
@@ -289,6 +305,18 @@
     function flashInitialized ()
     {
         flash = document.getElementById ("MyChat");
+
+        flash.str_ConnectingToServer ("{{str_ConnectingToServer}}");
+        flash.str_AwaitingPeer       ("{{str_AwaitingPeer}}");
+        flash.str_ConnectionError    ("{{str_ConnectionError}}");
+        flash.str_Disconnected       ("{{str_Disconnected}}");
+        flash.str_Reconnecting       ("{{str_Reconnecting}}");
+        flash.str_NewCall            ("{{str_NewCall}}");
+        flash.str_SecondCall         ("{{str_SecondCall}}");
+        flash.str_CallEnded          ("{{str_CallEnded}}");
+        flash.str_PeerConnected      ("{{str_PeerConnected}}");
+        flash.str_PeerDisconnected   ("{{str_PeerDisconnected}}");
+        flash.str_PeerEndedCall      ("{{str_PeerEndedCall}}");
 
 	flash_initialized = true;
 	if (should_connect)
@@ -348,13 +376,13 @@
 	  <table style="border: 0" cellpadding="0" cellspacing="0">
 	    <tr>
 	      <td style="vertical-align: middle; padding-right: 1ex">
-		<span style="color: #808080">Введите код разговора:&nbsp;</span>
+		<span style="color: #808080">{{str_EnterConversationCode}}:&nbsp;</span>
 		<span style="color: #333333">
-		  <input id="CodeInput" class="code_input" type="text" placeholder="Код разговора" onkeydown="codeKeyDown(event)"/>
+		  <input id="CodeInput" class="code_input" type="text" placeholder="{{str_ConversationCode}}" onkeydown="codeKeyDown(event)"/>
 		</span>
 	      </td>
 	      <td class="connect_button" onclick="connect()">
-		Подключиться
+                {{str_Connect}}
 	      </td>
 	    </tr>
 	  </table>
@@ -379,11 +407,11 @@
 	  <tr>
 	    <td style="width: 100%; text-align: left; color: #333333">
 	    <div id="ChatInputWrapper" style="chat_input_wrapper_blocked">
-	      <input id="ChatInput" class="chat_input chat_input_blocked" type="text" placeholder="Введите сообщение" onkeydown="chatKeyDown(event)"/>
+	      <input id="ChatInput" class="chat_input chat_input_blocked" type="text" placeholder="{{str_TypeMessageHere}}" onkeydown="chatKeyDown(event)"/>
 	      </div>
 	    </td>
 	    <td id="SendButton" tabindex="0" class="send_button send_button_blocked" style="vertical-align: middle" onclick="sendButtonClick()" onkeydown="sendKeyDown(event)">
-	      Отправить
+              {{str_Send}}
 	    </td>
 	  </tr>
 	</table>
